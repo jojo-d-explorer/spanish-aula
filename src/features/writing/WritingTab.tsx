@@ -1,44 +1,25 @@
 import { useState } from 'react';
+import { generateWritingPrompt, type WritingPrompt } from '../../shared/prompts/writingPrompt';
 
-const TEST_MESSAGE =
-  'Hola. Please reply with one short, friendly sentence in Spanish about learning Spanish.';
+// Hardcoded until a settings/profile UI exists to change them.
+const DIALECT = 'mx';
+const DELE_LEVEL = 'A2';
 
 function WritingTab() {
-  const [reply, setReply] = useState<string | null>(null);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-
-  async function ping() {
-    setStatus('loading');
-    setReply(null);
-    try {
-      const res = await fetch('/api/hello', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: TEST_MESSAGE }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Request failed');
-      setReply(data.reply);
-      setStatus('idle');
-    } catch (err) {
-      console.error(err);
-      setStatus('error');
-    }
-  }
+  const [prompt, setPrompt] = useState<WritingPrompt | null>(null);
 
   return (
     <section>
       <h2>Writing</h2>
-      <p>Real writing practice arrives in Phase 1. For now, this proves the wiring works.</p>
-      <button onClick={ping} disabled={status === 'loading'}>
-        {status === 'loading' ? 'Asking Claude…' : 'Ping Claude (test)'}
+      <button onClick={() => setPrompt(generateWritingPrompt(DIALECT, DELE_LEVEL))}>
+        Generate prompt
       </button>
-      {reply && (
+      {prompt && (
         <p>
-          <strong>Claude says:</strong> {reply}
+          <strong>Prompt:</strong> {prompt.text}
         </p>
       )}
-      {status === 'error' && <p role="alert">Something went wrong — check the console/logs.</p>}
+      {!prompt && <p>Tap the button for a DELE-calibrated writing prompt.</p>}
     </section>
   );
 }
