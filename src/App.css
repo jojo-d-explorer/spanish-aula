@@ -1,0 +1,30 @@
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+header h1 {
+  margin: 0 0 16px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.tab {
+  font-size: 16px;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tab--active {
+  border-bottom-color: var(--accent, #646cff);
+  font-weight: 600;
+}
