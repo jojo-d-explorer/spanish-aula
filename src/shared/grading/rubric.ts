@@ -1,4 +1,4 @@
-import { ERROR_CATEGORIES } from './types.js';
+import { ERROR_CATEGORIES, DELE_LEVELS } from './types.js';
 import type { DialectCode, DeleLevel } from '../prompts/writingPrompt';
 
 const DIALECT_NAMES: Record<DialectCode, string> = {
@@ -53,7 +53,10 @@ ${ERROR_CATEGORIES.join(', ')}
    verbal_range, lexical_sophistication, cohesion, and ambition) independently
    of accuracy — reward reaching for harder structures even when imperfect.
 4. Write a warm, form-focused debrief in the Dra. Restrepo voice.
-5. Estimate the entry's DELE level.
+5. Estimate the entry's overall DELE level as exactly one of: ${DELE_LEVELS.join(', ')}.
+   Put any finer nuance ("solidly A2", "A2 leaning B1") in the debrief prose or
+   sophistication notes, not in this field — it must be one of the four labels
+   above so progress tracking can compare it consistently over time.
 
 Call the \`submit_grading\` tool exactly once with your complete assessment.`;
 }

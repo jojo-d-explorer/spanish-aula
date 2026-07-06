@@ -31,6 +31,10 @@ export const ERROR_CATEGORIES = [
 
 export type ErrorCategory = (typeof ERROR_CATEGORIES)[number];
 
+// Ordinal — index order matters for level-nudge comparisons in src/shared/settings.
+export const DELE_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const;
+export type DeleLevelEstimate = (typeof DELE_LEVELS)[number];
+
 export interface AccuracyObservation {
   category: ErrorCategory;
   obligatory_context: boolean;
@@ -68,5 +72,5 @@ export interface GradingContract {
     notes: string;
   };
   feedback_prose: string;
-  dele_level_estimate: string;
+  dele_level_estimate: DeleLevelEstimate;
 }

@@ -1,14 +1,15 @@
-import { useState } from 'react';
-import { generateWritingPrompt, type WritingPrompt } from '../../shared/prompts/writingPrompt';
+import { useEffect, useState } from 'react';
+import { generateWritingPrompt, type WritingPrompt, type DeleLevel } from '../../shared/prompts/writingPrompt';
 import type { GradingContract } from '../../shared/grading/types';
+import type { SettingsResponse } from '../../shared/settings/types';
 import HistoryView from './history/HistoryView';
 
-// Hardcoded until a settings/profile UI exists to change them.
-const DIALECT = 'mx';
-const DELE_LEVEL = 'A2';
+const LEVEL_OPTIONS: DeleLevel[] = ['A2', 'B1', 'B2'];
 
 function WritingTab() {
   const [view, setView] = useState<'write' | 'history'>('write');
+  const [settings, setSettings] = useState<SettingsResponse | null>(null);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const [prompt, setPrompt] = useState<WritingPrompt | null>(null);
   const [entryText, setEntryText] = useState('');
   const [feedback, setFeedback] = useState<GradingContract | null>(null);
@@ -16,14 +17,39 @@ function WritingTab() {
   const [errorMessage, setErrorMessage] = useState('');
   const [saveWarning, setSaveWarning] = useState('');
 
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((data) => setSettings(data as SettingsResponse))
+      .catch((err) => console.error('Failed to load settings', err));
+  }, []);
+
+  async function updateLevel(deleLevel: DeleLevel) {
+    if (!settings) return;
+    setSettings({ ...settings, deleLevel });
+    setNudgeDismissed(false);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleLevel }),
+      });
+      if (!res.ok) throw new Error('Failed to update level');
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   function handleGeneratePrompt() {
-    setPrompt(generateWritingPrompt(DIALECT, DELE_LEVEL));
+    if (!settings) return;
+    setPrompt(generateWritingPrompt(settings.dialect, settings.deleLevel));
     setEntryText('');
     setFeedback(null);
     setStatus('idle');
   }
 
   async function handleSubmit() {
+    if (!settings) return;
     setStatus('grading');
     setErrorMessage('');
     setSaveWarning('');
@@ -34,8 +60,8 @@ function WritingTab() {
         body: JSON.stringify({
           entryText,
           promptText: prompt?.text ?? '',
-          dialect: DIALECT,
-          deleLevel: DELE_LEVEL,
+          dialect: settings.dialect,
+          deleLevel: settings.deleLevel,
         }),
       });
       const data = await res.json();
@@ -62,64 +88,91 @@ function WritingTab() {
         </button>
       </div>
 
+      {settings && (
+        <p>
+          Level:{' '}
+          <select value={settings.deleLevel} onChange={(e) => updateLevel(e.target.value as DeleLevel)}>
+            {LEVEL_OPTIONS.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
+          </select>
+        </p>
+      )}
+
+      {settings?.nudge && !nudgeDismissed && (
+        <div role="status">
+          <p>
+            {settings.nudge.reason} Move up to <strong>{settings.nudge.suggestedLevel}</strong>?
+          </p>
+          <button onClick={() => updateLevel(settings.nudge!.suggestedLevel)}>
+            Update to {settings.nudge.suggestedLevel}
+          </button>{' '}
+          <button onClick={() => setNudgeDismissed(true)}>Not yet</button>
+        </div>
+      )}
+
       {view === 'history' && <HistoryView />}
 
       {view === 'write' && (
         <>
-      <button onClick={handleGeneratePrompt}>Generate prompt</button>
-
-      {!prompt && <p>Tap the button for a DELE-calibrated writing prompt.</p>}
-
-      {prompt && (
-        <>
-          <p>
-            <strong>Prompt:</strong> {prompt.text}
-          </p>
-          <textarea
-            value={entryText}
-            onChange={(e) => setEntryText(e.target.value)}
-            rows={6}
-            style={{ width: '100%' }}
-            placeholder="Escribe tu respuesta aquí..."
-          />
-          <button onClick={handleSubmit} disabled={status === 'grading' || !entryText.trim()}>
-            {status === 'grading' ? 'Grading…' : 'Submit'}
+          <button onClick={handleGeneratePrompt} disabled={!settings}>
+            Generate prompt
           </button>
-        </>
-      )}
 
-      {status === 'error' && <p role="alert">{errorMessage}</p>}
+          {!prompt && <p>Tap the button for a DELE-calibrated writing prompt.</p>}
 
-      {feedback && (
-        <div>
-          <h3>Feedback (Dra. Restrepo)</h3>
-          <p>{feedback.feedback_prose}</p>
+          {prompt && (
+            <>
+              <p>
+                <strong>Prompt:</strong> {prompt.text}
+              </p>
+              <textarea
+                value={entryText}
+                onChange={(e) => setEntryText(e.target.value)}
+                rows={6}
+                style={{ width: '100%' }}
+                placeholder="Escribe tu respuesta aquí..."
+              />
+              <button onClick={handleSubmit} disabled={status === 'grading' || !entryText.trim()}>
+                {status === 'grading' ? 'Grading…' : 'Submit'}
+              </button>
+            </>
+          )}
 
-          <h4>Corrected text</h4>
-          <p>{feedback.corrected_text}</p>
+          {status === 'error' && <p role="alert">{errorMessage}</p>}
 
-          <h4>Sophistication: {feedback.sophistication.overall}/10</h4>
-          <ul>
-            {Object.entries(feedback.sophistication.subscores).map(([key, value]) => (
-              <li key={key}>
-                {key}: {value}/10
-              </li>
-            ))}
-          </ul>
+          {feedback && (
+            <div>
+              <h3>Feedback (Dra. Restrepo)</h3>
+              <p>{feedback.feedback_prose}</p>
 
-          <h4>Accuracy by category</h4>
-          <ul>
-            {Object.entries(feedback.accuracy.category_summary).map(([category, summary]) => (
-              <li key={category}>
-                {category}: {summary!.correct}/{summary!.obligatory_contexts}
-              </li>
-            ))}
-          </ul>
+              <h4>Corrected text</h4>
+              <p>{feedback.corrected_text}</p>
 
-          <h4>Estimated DELE level: {feedback.dele_level_estimate}</h4>
-          {saveWarning && <p role="alert">{saveWarning}</p>}
-        </div>
-      )}
+              <h4>Sophistication: {feedback.sophistication.overall}/10</h4>
+              <ul>
+                {Object.entries(feedback.sophistication.subscores).map(([key, value]) => (
+                  <li key={key}>
+                    {key}: {value}/10
+                  </li>
+                ))}
+              </ul>
+
+              <h4>Accuracy by category</h4>
+              <ul>
+                {Object.entries(feedback.accuracy.category_summary).map(([category, summary]) => (
+                  <li key={category}>
+                    {category}: {summary!.correct}/{summary!.obligatory_contexts}
+                  </li>
+                ))}
+              </ul>
+
+              <h4>Estimated DELE level: {feedback.dele_level_estimate}</h4>
+              {saveWarning && <p role="alert">{saveWarning}</p>}
+            </div>
+          )}
         </>
       )}
     </section>

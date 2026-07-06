@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
-import { ERROR_CATEGORIES, type GradingContract } from '../src/shared/grading/types.js';
+import { ERROR_CATEGORIES, DELE_LEVELS, type GradingContract } from '../src/shared/grading/types.js';
 import { buildGradingSystemPrompt } from '../src/shared/grading/rubric.js';
 import { persistGradedEntry } from '../src/shared/db/entries.js';
 import type { DialectCode, DeleLevel } from '../src/shared/prompts/writingPrompt';
@@ -78,7 +78,7 @@ const GRADING_TOOL: Anthropic.Tool = {
         required: ['overall', 'subscores', 'notes'],
       },
       feedback_prose: { type: 'string' },
-      dele_level_estimate: { type: 'string' },
+      dele_level_estimate: { type: 'string', enum: DELE_LEVELS as unknown as string[] },
     },
     required: ['corrected_text', 'accuracy', 'sophistication', 'feedback_prose', 'dele_level_estimate'],
   },
