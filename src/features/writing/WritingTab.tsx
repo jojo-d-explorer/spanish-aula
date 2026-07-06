@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { generateWritingPrompt, type WritingPrompt } from '../../shared/prompts/writingPrompt';
 import type { GradingContract } from '../../shared/grading/types';
+import HistoryView from './history/HistoryView';
 
 // Hardcoded until a settings/profile UI exists to change them.
 const DIALECT = 'mx';
 const DELE_LEVEL = 'A2';
 
 function WritingTab() {
+  const [view, setView] = useState<'write' | 'history'>('write');
   const [prompt, setPrompt] = useState<WritingPrompt | null>(null);
   const [entryText, setEntryText] = useState('');
   const [feedback, setFeedback] = useState<GradingContract | null>(null);
@@ -51,6 +53,19 @@ function WritingTab() {
   return (
     <section>
       <h2>Writing</h2>
+      <div style={{ marginBottom: 16 }}>
+        <button onClick={() => setView('write')} disabled={view === 'write'}>
+          Write
+        </button>{' '}
+        <button onClick={() => setView('history')} disabled={view === 'history'}>
+          History
+        </button>
+      </div>
+
+      {view === 'history' && <HistoryView />}
+
+      {view === 'write' && (
+        <>
       <button onClick={handleGeneratePrompt}>Generate prompt</button>
 
       {!prompt && <p>Tap the button for a DELE-calibrated writing prompt.</p>}
@@ -104,6 +119,8 @@ function WritingTab() {
           <h4>Estimated DELE level: {feedback.dele_level_estimate}</h4>
           {saveWarning && <p role="alert">{saveWarning}</p>}
         </div>
+      )}
+        </>
       )}
     </section>
   );
