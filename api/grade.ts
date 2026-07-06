@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
-import { ERROR_CATEGORIES } from '../src/shared/grading/types';
+import { ERROR_CATEGORIES, type GradingContract } from '../src/shared/grading/types';
 import { buildGradingSystemPrompt } from '../src/shared/grading/rubric';
+import { persistGradedEntry } from '../src/shared/db/entries';
 import type { DialectCode, DeleLevel } from '../src/shared/prompts/writingPrompt';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -94,11 +95,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const entryText = typeof req.body?.entryText === 'string' ? req.body.entryText.trim() : '';
+  const promptText = typeof req.body?.promptText === 'string' ? req.body.promptText.trim() : '';
   const dialect: DialectCode = req.body?.dialect === 'rio' ? 'rio' : 'mx';
   const deleLevel: DeleLevel = ['A2', 'B1', 'B2'].includes(req.body?.deleLevel) ? req.body.deleLevel : 'A2';
 
   if (!entryText) {
     res.status(400).json({ error: 'entryText is required.' });
+    return;
+  }
+  if (!promptText) {
+    res.status(400).json({ error: 'promptText is required.' });
     return;
   }
 
@@ -127,7 +133,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    res.status(200).json(toolUse.input);
+    const grading = toolUse.input as GradingContract;
+
+    let entryId: string | null = null;
+    let persistError: string | undefined;
+    try {
+      entryId = await persistGradedEntry({ dialect, deleLevel, promptText, entryText, grading });
+    } catch (err) {
+      // Grading already succeeded and cost real tokens — show the feedback
+      // regardless, but flag that it wasn't saved.
+      console.error('Persistence error:', err);
+      persistError = 'Entry graded but could not be saved.';
+    }
+
+    res.status(200).json({ ...grading, entryId, persistError });
   } catch (err) {
     console.error('Anthropic grading error:', err);
     res.status(500).json({ error: 'Failed to grade entry. Check server logs.' });

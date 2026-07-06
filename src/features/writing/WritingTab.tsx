@@ -12,6 +12,7 @@ function WritingTab() {
   const [feedback, setFeedback] = useState<GradingContract | null>(null);
   const [status, setStatus] = useState<'idle' | 'grading' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [saveWarning, setSaveWarning] = useState('');
 
   function handleGeneratePrompt() {
     setPrompt(generateWritingPrompt(DIALECT, DELE_LEVEL));
@@ -23,15 +24,22 @@ function WritingTab() {
   async function handleSubmit() {
     setStatus('grading');
     setErrorMessage('');
+    setSaveWarning('');
     try {
       const res = await fetch('/api/grade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entryText, dialect: DIALECT, deleLevel: DELE_LEVEL }),
+        body: JSON.stringify({
+          entryText,
+          promptText: prompt?.text ?? '',
+          dialect: DIALECT,
+          deleLevel: DELE_LEVEL,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Grading failed');
       setFeedback(data as GradingContract);
+      if (data.persistError) setSaveWarning(data.persistError);
       setStatus('idle');
     } catch (err) {
       console.error(err);
@@ -94,6 +102,7 @@ function WritingTab() {
           </ul>
 
           <h4>Estimated DELE level: {feedback.dele_level_estimate}</h4>
+          {saveWarning && <p role="alert">{saveWarning}</p>}
         </div>
       )}
     </section>
