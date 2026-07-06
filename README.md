@@ -7,16 +7,16 @@ A multi-prong tool for self-spanish study covering graded journaling, generated 
 |----------------------|----------------------------------------------------|----------|
 | `ANTHROPIC_API_KEY`  | `/api` serverless functions only, never the browser | Yes      |
 
-Local dev: copy your key into `.env.local` (gitignored, never committed):
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
-Production: set the same variable in the Vercel dashboard under
-Project → Settings → Environment Variables.
+Local dev: run `vercel link` once to connect this directory to the Vercel
+project, then `vercel env pull .env.local` to download the key (gitignored,
+never committed). Production: set the same variable in the Vercel dashboard
+under Project → Settings → Environment Variables.
 
 ## Commands
 
-- `npm run dev` — local dev (frontend + `/api` functions together, via `vercel dev`)
+- `npm run dev` — frontend only (plain Vite, fast reload, `/api` routes 404)
+- `npm run dev:full` — frontend + `/api` functions together (`vercel dev`) —
+  use this when testing anything that calls the Anthropic proxy
 - `npm run build` — production build
 - `npm run deploy` — deploy to production (`vercel deploy --prod`)
 
