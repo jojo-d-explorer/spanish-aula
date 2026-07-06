@@ -1,4 +1,4 @@
-import { getSupabaseClient } from './client';
+import { getSupabaseClient } from './client.js';
 import type { GradingContract } from '../grading/types';
 import type { DialectCode, DeleLevel } from '../prompts/writingPrompt';
 

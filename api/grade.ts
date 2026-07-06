@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
-import { ERROR_CATEGORIES, type GradingContract } from '../src/shared/grading/types';
-import { buildGradingSystemPrompt } from '../src/shared/grading/rubric';
-import { persistGradedEntry } from '../src/shared/db/entries';
+import { ERROR_CATEGORIES, type GradingContract } from '../src/shared/grading/types.js';
+import { buildGradingSystemPrompt } from '../src/shared/grading/rubric.js';
+import { persistGradedEntry } from '../src/shared/db/entries.js';
 import type { DialectCode, DeleLevel } from '../src/shared/prompts/writingPrompt';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });

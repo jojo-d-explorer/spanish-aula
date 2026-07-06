@@ -1,4 +1,4 @@
-import { ERROR_CATEGORIES } from './types';
+import { ERROR_CATEGORIES } from './types.js';
 import type { DialectCode, DeleLevel } from '../prompts/writingPrompt';
 
 const DIALECT_NAMES: Record<DialectCode, string> = {
