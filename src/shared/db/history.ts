@@ -9,8 +9,9 @@ export async function fetchHistoryData(): Promise<{
   const supabase = getSupabaseClient();
 
   // Independent reads (different tables, no shared input) — run in parallel.
+  // error_observations carries its own created_at (PRD §8.2) — no join needed.
   const [obsResult, entryResult] = await Promise.all([
-    supabase.from('observations').select('category, obligatory_context, correct, entries(created_at)'),
+    supabase.from('error_observations').select('category, obligatory_context, correct, created_at'),
     supabase.from('entries').select('created_at, sophistication_overall, sophistication_subscores'),
   ]);
 
@@ -18,7 +19,7 @@ export async function fetchHistoryData(): Promise<{
   if (obsError) throw obsError;
 
   const observations: ObservationRecord[] = (obsRows ?? []).map((row) => ({
-    createdAt: (row.entries as unknown as { created_at: string }).created_at,
+    createdAt: row.created_at,
     category: row.category as ErrorCategory,
     obligatoryContext: row.obligatory_context,
     correct: row.correct,

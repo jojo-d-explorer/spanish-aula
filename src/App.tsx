@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import WritingTab from './features/writing/WritingTab';
+import WordBankCapture from './features/word-bank/WordBankCapture';
 import './App.css';
 
 function App() {
+  const [view, setView] = useState<'write' | 'history'>('write');
+
   return (
     <div className="app">
       <header>
@@ -13,8 +17,9 @@ function App() {
         </button>
       </nav>
       <main>
-        <WritingTab />
+        <WritingTab view={view} onViewChange={setView} />
       </main>
+      <WordBankCapture sourceTab={view} />
     </div>
   );
 }

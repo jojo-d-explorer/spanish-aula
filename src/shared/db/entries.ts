@@ -46,7 +46,7 @@ export async function persistGradedEntry(input: PersistEntryInput): Promise<stri
   }));
 
   if (observations.length > 0) {
-    const { error: obsError } = await supabase.from('observations').insert(observations);
+    const { error: obsError } = await supabase.from('error_observations').insert(observations);
     if (obsError) {
       // Don't leave an orphaned entries row with no observations behind —
       // it would silently skew History's accuracy/exposure aggregation.

@@ -4,8 +4,12 @@ import type { GradingContract } from '../../shared/grading/types';
 import type { SettingsResponse } from '../../shared/settings/types';
 import HistoryView from './history/HistoryView';
 
-function WritingTab() {
-  const [view, setView] = useState<'write' | 'history'>('write');
+interface WritingTabProps {
+  view: 'write' | 'history';
+  onViewChange: (view: 'write' | 'history') => void;
+}
+
+function WritingTab({ view, onViewChange }: WritingTabProps) {
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
   const [settingsError, setSettingsError] = useState('');
   const [levelUpdateError, setLevelUpdateError] = useState('');
@@ -97,10 +101,10 @@ function WritingTab() {
     <section>
       <h2>Writing</h2>
       <div style={{ marginBottom: 16 }}>
-        <button onClick={() => setView('write')} disabled={view === 'write'}>
+        <button onClick={() => onViewChange('write')} disabled={view === 'write'}>
           Write
         </button>{' '}
-        <button onClick={() => setView('history')} disabled={view === 'history'}>
+        <button onClick={() => onViewChange('history')} disabled={view === 'history'}>
           History
         </button>
       </div>

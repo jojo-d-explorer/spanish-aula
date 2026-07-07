@@ -20,27 +20,27 @@ function CategoryCard({ trend }: { trend: CategoryTrend }) {
   const accuracyValues = trend.weeks.map((w) => Math.round((w.accuracy ?? 0) * 100));
   const exposureValues = trend.weeks.map((w) => w.exposure);
   const labels = trend.weeks.map((w) => w.weekStart);
-  const latest = trend.weeks[trend.weeks.length - 1];
 
   return (
     <div className="history-card">
       <div className="history-card__header">
         <h4>{trend.category}</h4>
+        {trend.escalationFlag && (
+          <span className="history-badge history-badge--critical">🚩 needs a micro-lesson</span>
+        )}
         {trend.avoidanceFlag && (
-          <span className="history-badge history-badge--warning">
-            ⚠ possible avoidance
-          </span>
+          <span className="history-badge history-badge--warning">⚠ possible avoidance</span>
         )}
       </div>
       <div className="history-card__stats">
         <div className="history-stat">
-          <div className="history-stat__value">{Math.round((latest.accuracy ?? 0) * 100)}%</div>
-          <div className="history-stat__label">Accuracy</div>
+          <div className="history-stat__value">{Math.round((trend.current.accuracy ?? 0) * 100)}%</div>
+          <div className="history-stat__label">Accuracy (last 14 days)</div>
           <Sparkline values={accuracyValues} labels={labels} color="var(--series-1)" />
         </div>
         <div className="history-stat">
-          <div className="history-stat__value">{latest.exposure}</div>
-          <div className="history-stat__label">Exposure (this week)</div>
+          <div className="history-stat__value">{trend.current.exposure}</div>
+          <div className="history-stat__label">Exposure (last 14 days)</div>
           <Sparkline values={exposureValues} labels={labels} color="var(--series-1)" />
         </div>
       </div>

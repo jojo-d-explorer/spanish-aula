@@ -1,8 +1,11 @@
 import { SUBSCORE_KEYS, type ErrorCategory, type SophisticationSubscores } from '../grading/types.js';
 
-// Noise control (PRD §5): a category's trend stays hidden until it has
-// accumulated at least this many obligatory contexts.
-export const MIN_OBLIGATORY_CONTEXTS = 5;
+// PRD §8.3 — Phase 2 trend logic, computed at read time from raw observations.
+// No rollup/cache table (PRD §8.2): these are queries over error_observations,
+// not a stored aggregate.
+export const WINDOW_DAYS = 14;
+export const MIN_OBLIGATORY_CONTEXTS = 5; // in the current window — noise control
+export const ESCALATION_THRESHOLD = 3; // incorrect-and-obligatory, in the current window
 
 export interface ObservationRecord {
   createdAt: string;
@@ -24,15 +27,26 @@ export interface WeeklyPoint {
   accuracy: number | null;
 }
 
+export interface WindowStats {
+  exposure: number;
+  correct: number;
+  accuracy: number | null;
+}
+
 export interface CategoryTrend {
   category: ErrorCategory;
-  totalExposure: number;
+  current: WindowStats;
+  prior: WindowStats;
+  // Full weekly-bucketed history, for the sparkline visual only — not part of
+  // the noise-control gate or the flag formulas below, which look only at the
+  // current/prior 14-day windows per PRD §8.3.
   weeks: WeeklyPoint[];
-  // True when accuracy rose while exposure fell between the earlier and
-  // later half of this category's weeks-with-data — PRD §5: "possible
-  // avoidance -> flagged, not celebrated." Only computed with >= 2
-  // weeks-with-data; otherwise there's no trend direction to assess.
+  // Current exposure < half of prior exposure, with flat-or-rising accuracy —
+  // PRD §8.3. Needs a nonzero prior window to mean anything.
   avoidanceFlag: boolean;
+  // >= 3 incorrect-and-obligatory observations in the current window —
+  // PRD §8.3 / the Persona doc's "3 repeats -> micro-lesson" commitment.
+  escalationFlag: boolean;
 }
 
 export interface SophisticationWeeklyPoint {
@@ -62,47 +76,63 @@ function average(nums: number[]): number {
   return nums.reduce((sum, n) => sum + n, 0) / nums.length;
 }
 
-function computeAvoidanceFlag(weeksWithData: WeeklyPoint[]): boolean {
-  if (weeksWithData.length < 2) return false;
-
-  const mid = Math.floor(weeksWithData.length / 2);
-  const earlier = weeksWithData.slice(0, mid);
-  const later = weeksWithData.slice(mid);
-
-  const earlierAccuracy = average(earlier.map((w) => w.accuracy ?? 0));
-  const laterAccuracy = average(later.map((w) => w.accuracy ?? 0));
-  const earlierExposure = earlier.reduce((sum, w) => sum + w.exposure, 0);
-  const laterExposure = later.reduce((sum, w) => sum + w.exposure, 0);
-
-  return laterAccuracy > earlierAccuracy && laterExposure < earlierExposure;
+function windowStats(obs: ObservationRecord[], start: Date, end: Date): WindowStats {
+  const inWindow = obs.filter((o) => {
+    const t = new Date(o.createdAt).getTime();
+    return t >= start.getTime() && t < end.getTime();
+  });
+  const exposure = inWindow.length;
+  const correct = inWindow.filter((o) => o.correct).length;
+  return { exposure, correct, accuracy: exposure > 0 ? correct / exposure : null };
 }
 
 export function computeTrends(
   observations: ObservationRecord[],
   sophisticationRecords: EntrySophisticationRecord[],
+  now: Date = new Date(),
 ): HistoryTrends {
   const obligatory = observations.filter((o) => o.obligatoryContext);
 
-  const byCategory = new Map<ErrorCategory, Map<string, { exposure: number; correct: number }>>();
+  const windowMs = WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const currentStart = new Date(now.getTime() - windowMs);
+  const priorStart = new Date(now.getTime() - 2 * windowMs);
+
+  const byCategory = new Map<ErrorCategory, ObservationRecord[]>();
   for (const obs of obligatory) {
-    const week = weekStartISO(obs.createdAt);
-    if (week === null) {
-      console.error('Skipping observation with unparseable createdAt:', obs.createdAt);
-      continue;
-    }
-    if (!byCategory.has(obs.category)) byCategory.set(obs.category, new Map());
-    const weeks = byCategory.get(obs.category)!;
-    const bucket = weeks.get(week) ?? { exposure: 0, correct: 0 };
-    bucket.exposure += 1;
-    bucket.correct += obs.correct ? 1 : 0;
-    weeks.set(week, bucket);
+    if (!byCategory.has(obs.category)) byCategory.set(obs.category, []);
+    byCategory.get(obs.category)!.push(obs);
   }
 
   const categories: CategoryTrend[] = [];
-  for (const [category, weekMap] of byCategory.entries()) {
-    const totalExposure = Array.from(weekMap.values()).reduce((sum, b) => sum + b.exposure, 0);
-    if (totalExposure < MIN_OBLIGATORY_CONTEXTS) continue;
+  for (const [category, obsForCategory] of byCategory.entries()) {
+    const current = windowStats(obsForCategory, currentStart, now);
+    if (current.exposure < MIN_OBLIGATORY_CONTEXTS) continue;
 
+    const prior = windowStats(obsForCategory, priorStart, currentStart);
+
+    const escalationFlag =
+      obsForCategory.filter((o) => {
+        const t = new Date(o.createdAt).getTime();
+        return t >= currentStart.getTime() && t < now.getTime() && !o.correct;
+      }).length >= ESCALATION_THRESHOLD;
+
+    const avoidanceFlag =
+      prior.exposure > 0 &&
+      current.exposure < prior.exposure / 2 &&
+      (current.accuracy ?? 0) >= (prior.accuracy ?? 0);
+
+    const weekMap = new Map<string, { exposure: number; correct: number }>();
+    for (const obs of obsForCategory) {
+      const week = weekStartISO(obs.createdAt);
+      if (week === null) {
+        console.error('Skipping observation with unparseable createdAt:', obs.createdAt);
+        continue;
+      }
+      const bucket = weekMap.get(week) ?? { exposure: 0, correct: 0 };
+      bucket.exposure += 1;
+      bucket.correct += obs.correct ? 1 : 0;
+      weekMap.set(week, bucket);
+    }
     const weeks: WeeklyPoint[] = Array.from(weekMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([weekStart, b]) => ({
@@ -112,15 +142,10 @@ export function computeTrends(
         accuracy: b.exposure > 0 ? b.correct / b.exposure : null,
       }));
 
-    categories.push({
-      category,
-      totalExposure,
-      weeks,
-      avoidanceFlag: computeAvoidanceFlag(weeks),
-    });
+    categories.push({ category, current, prior, weeks, avoidanceFlag, escalationFlag });
   }
 
-  categories.sort((a, b) => b.totalExposure - a.totalExposure);
+  categories.sort((a, b) => b.current.exposure - a.current.exposure);
 
   const sophWeekMap = new Map<string, EntrySophisticationRecord[]>();
   for (const rec of sophisticationRecords) {
