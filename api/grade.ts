@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
-import { ERROR_CATEGORIES, DELE_LEVELS, type GradingContract } from '../src/shared/grading/types.js';
+import { ERROR_CATEGORIES, DELE_LEVELS, SUBSCORE_KEYS, type GradingContract } from '../src/shared/grading/types.js';
 import { buildGradingSystemPrompt } from '../src/shared/grading/rubric.js';
 import { persistGradedEntry } from '../src/shared/db/entries.js';
-import type { DialectCode, DeleLevel } from '../src/shared/prompts/writingPrompt';
+import { isDeleLevel, type DialectCode, type DeleLevel } from '../src/shared/prompts/writingPrompt.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -64,14 +64,10 @@ const GRADING_TOOL: Anthropic.Tool = {
           overall: { type: 'integer', minimum: 1, maximum: 10 },
           subscores: {
             type: 'object',
-            properties: {
-              syntactic_complexity: { type: 'integer', minimum: 1, maximum: 10 },
-              verbal_range: { type: 'integer', minimum: 1, maximum: 10 },
-              lexical_sophistication: { type: 'integer', minimum: 1, maximum: 10 },
-              cohesion: { type: 'integer', minimum: 1, maximum: 10 },
-              ambition: { type: 'integer', minimum: 1, maximum: 10 },
-            },
-            required: ['syntactic_complexity', 'verbal_range', 'lexical_sophistication', 'cohesion', 'ambition'],
+            properties: Object.fromEntries(
+              SUBSCORE_KEYS.map((key) => [key, { type: 'integer', minimum: 1, maximum: 10 }]),
+            ),
+            required: SUBSCORE_KEYS as unknown as string[],
           },
           notes: { type: 'string' },
         },
@@ -97,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const entryText = typeof req.body?.entryText === 'string' ? req.body.entryText.trim() : '';
   const promptText = typeof req.body?.promptText === 'string' ? req.body.promptText.trim() : '';
   const dialect: DialectCode = req.body?.dialect === 'rio' ? 'rio' : 'mx';
-  const deleLevel: DeleLevel = ['A2', 'B1', 'B2'].includes(req.body?.deleLevel) ? req.body.deleLevel : 'A2';
+  const deleLevel: DeleLevel = isDeleLevel(req.body?.deleLevel) ? req.body.deleLevel : 'A2';
 
   if (!entryText) {
     res.status(400).json({ error: 'entryText is required.' });

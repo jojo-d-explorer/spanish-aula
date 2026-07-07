@@ -47,7 +47,12 @@ export async function persistGradedEntry(input: PersistEntryInput): Promise<stri
 
   if (observations.length > 0) {
     const { error: obsError } = await supabase.from('observations').insert(observations);
-    if (obsError) throw obsError;
+    if (obsError) {
+      // Don't leave an orphaned entries row with no observations behind —
+      // it would silently skew History's accuracy/exposure aggregation.
+      await supabase.from('entries').delete().eq('id', entry.id);
+      throw obsError;
+    }
   }
 
   return entry.id as string;

@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
-import { generateWritingPrompt, type WritingPrompt, type DeleLevel } from '../../shared/prompts/writingPrompt';
+import { generateWritingPrompt, type WritingPrompt, type DeleLevel, DELE_LEVEL_OPTIONS } from '../../shared/prompts/writingPrompt';
 import type { GradingContract } from '../../shared/grading/types';
 import type { SettingsResponse } from '../../shared/settings/types';
 import HistoryView from './history/HistoryView';
 
-const LEVEL_OPTIONS: DeleLevel[] = ['A2', 'B1', 'B2'];
-
 function WritingTab() {
   const [view, setView] = useState<'write' | 'history'>('write');
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
+  const [settingsError, setSettingsError] = useState('');
+  const [levelUpdateError, setLevelUpdateError] = useState('');
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const [prompt, setPrompt] = useState<WritingPrompt | null>(null);
   const [entryText, setEntryText] = useState('');
@@ -17,16 +17,25 @@ function WritingTab() {
   const [errorMessage, setErrorMessage] = useState('');
   const [saveWarning, setSaveWarning] = useState('');
 
+  async function loadSettings() {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to load settings');
+      setSettings(data as SettingsResponse);
+      setSettingsError('');
+    } catch (err) {
+      console.error('Failed to load settings', err);
+      setSettingsError('Could not load your level settings — try reloading the page.');
+    }
+  }
+
   useEffect(() => {
-    fetch('/api/settings')
-      .then((res) => res.json())
-      .then((data) => setSettings(data as SettingsResponse))
-      .catch((err) => console.error('Failed to load settings', err));
+    loadSettings();
   }, []);
 
   async function updateLevel(deleLevel: DeleLevel) {
-    if (!settings) return;
-    setSettings({ ...settings, deleLevel });
+    setLevelUpdateError('');
     setNudgeDismissed(false);
     try {
       const res = await fetch('/api/settings', {
@@ -35,8 +44,13 @@ function WritingTab() {
         body: JSON.stringify({ deleLevel }),
       });
       if (!res.ok) throw new Error('Failed to update level');
+      // Refetch rather than optimistically patch local state — this also
+      // picks up the server's freshly-recomputed nudge (or its absence, if
+      // this update was accepting the nudge) instead of showing a stale one.
+      await loadSettings();
     } catch (err) {
       console.error(err);
+      setLevelUpdateError('Could not update your level — please try again.');
     }
   }
 
@@ -53,6 +67,7 @@ function WritingTab() {
     setStatus('grading');
     setErrorMessage('');
     setSaveWarning('');
+    setFeedback(null);
     try {
       const res = await fetch('/api/grade', {
         method: 'POST',
@@ -69,6 +84,8 @@ function WritingTab() {
       setFeedback(data as GradingContract);
       if (data.persistError) setSaveWarning(data.persistError);
       setStatus('idle');
+      // A fresh entry may have just crossed the nudge threshold.
+      loadSettings();
     } catch (err) {
       console.error(err);
       setErrorMessage(err instanceof Error ? err.message : 'Something went wrong.');
@@ -88,11 +105,13 @@ function WritingTab() {
         </button>
       </div>
 
+      {settingsError && <p role="alert">{settingsError}</p>}
+
       {settings && (
         <p>
           Level:{' '}
           <select value={settings.deleLevel} onChange={(e) => updateLevel(e.target.value as DeleLevel)}>
-            {LEVEL_OPTIONS.map((level) => (
+            {DELE_LEVEL_OPTIONS.map((level) => (
               <option key={level} value={level}>
                 {level}
               </option>
@@ -100,6 +119,8 @@ function WritingTab() {
           </select>
         </p>
       )}
+
+      {levelUpdateError && <p role="alert">{levelUpdateError}</p>}
 
       {settings?.nudge && !nudgeDismissed && (
         <div role="status">

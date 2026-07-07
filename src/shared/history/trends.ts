@@ -1,4 +1,4 @@
-import type { ErrorCategory, SophisticationSubscores } from '../grading/types';
+import { SUBSCORE_KEYS, type ErrorCategory, type SophisticationSubscores } from '../grading/types.js';
 
 // Noise control (PRD §5): a category's trend stays hidden until it has
 // accumulated at least this many obligatory contexts.
@@ -47,8 +47,11 @@ export interface HistoryTrends {
   sophistication: SophisticationWeeklyPoint[];
 }
 
-function weekStartISO(dateStr: string): string {
+// Returns null (rather than throwing) on an unparseable timestamp, so one
+// bad row can't take down the whole trends computation.
+function weekStartISO(dateStr: string): string | null {
   const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return null;
   const day = d.getUTCDay();
   const diffToMonday = day === 0 ? 6 : day - 1;
   const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - diffToMonday));
@@ -83,6 +86,10 @@ export function computeTrends(
   const byCategory = new Map<ErrorCategory, Map<string, { exposure: number; correct: number }>>();
   for (const obs of obligatory) {
     const week = weekStartISO(obs.createdAt);
+    if (week === null) {
+      console.error('Skipping observation with unparseable createdAt:', obs.createdAt);
+      continue;
+    }
     if (!byCategory.has(obs.category)) byCategory.set(obs.category, new Map());
     const weeks = byCategory.get(obs.category)!;
     const bucket = weeks.get(week) ?? { exposure: 0, correct: 0 };
@@ -118,17 +125,13 @@ export function computeTrends(
   const sophWeekMap = new Map<string, EntrySophisticationRecord[]>();
   for (const rec of sophisticationRecords) {
     const week = weekStartISO(rec.createdAt);
+    if (week === null) {
+      console.error('Skipping sophistication record with unparseable createdAt:', rec.createdAt);
+      continue;
+    }
     if (!sophWeekMap.has(week)) sophWeekMap.set(week, []);
     sophWeekMap.get(week)!.push(rec);
   }
-
-  const subscoreKeys: (keyof SophisticationSubscores)[] = [
-    'syntactic_complexity',
-    'verbal_range',
-    'lexical_sophistication',
-    'cohesion',
-    'ambition',
-  ];
 
   const sophistication: SophisticationWeeklyPoint[] = Array.from(sophWeekMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -136,7 +139,7 @@ export function computeTrends(
       weekStart,
       overall: average(recs.map((r) => r.overall)),
       subscores: Object.fromEntries(
-        subscoreKeys.map((key) => [key, average(recs.map((r) => r.subscores[key]))]),
+        SUBSCORE_KEYS.map((key) => [key, average(recs.map((r) => r.subscores[key]))]),
       ) as unknown as SophisticationSubscores,
       entryCount: recs.length,
     }));

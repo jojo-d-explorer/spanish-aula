@@ -1,5 +1,14 @@
 export type DialectCode = 'mx' | 'rio';
-export type DeleLevel = 'A2' | 'B1' | 'B2';
+
+// The practice/target level (what prompts are calibrated to). Distinct from
+// grading/types.ts's DELE_LEVELS, which also includes 'A1' for grading an
+// entry that came in below the practice level.
+export const DELE_LEVEL_OPTIONS = ['A2', 'B1', 'B2'] as const;
+export type DeleLevel = (typeof DELE_LEVEL_OPTIONS)[number];
+
+export function isDeleLevel(value: unknown): value is DeleLevel {
+  return (DELE_LEVEL_OPTIONS as readonly unknown[]).includes(value);
+}
 
 interface Topic {
   id: string;

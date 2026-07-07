@@ -8,9 +8,13 @@ export async function fetchHistoryData(): Promise<{
 }> {
   const supabase = getSupabaseClient();
 
-  const { data: obsRows, error: obsError } = await supabase
-    .from('observations')
-    .select('category, obligatory_context, correct, entries(created_at)');
+  // Independent reads (different tables, no shared input) — run in parallel.
+  const [obsResult, entryResult] = await Promise.all([
+    supabase.from('observations').select('category, obligatory_context, correct, entries(created_at)'),
+    supabase.from('entries').select('created_at, sophistication_overall, sophistication_subscores'),
+  ]);
+
+  const { data: obsRows, error: obsError } = obsResult;
   if (obsError) throw obsError;
 
   const observations: ObservationRecord[] = (obsRows ?? []).map((row) => ({
@@ -20,9 +24,7 @@ export async function fetchHistoryData(): Promise<{
     correct: row.correct,
   }));
 
-  const { data: entryRows, error: entryError } = await supabase
-    .from('entries')
-    .select('created_at, sophistication_overall, sophistication_subscores');
+  const { data: entryRows, error: entryError } = entryResult;
   if (entryError) throw entryError;
 
   const sophisticationRecords: EntrySophisticationRecord[] = (entryRows ?? []).map((row) => ({

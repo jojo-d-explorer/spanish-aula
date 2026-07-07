@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import Sparkline from './Sparkline';
 import type { HistoryTrends, CategoryTrend, SophisticationWeeklyPoint } from '../../../shared/history/trends';
+import { SUBSCORE_KEYS, type SubscoreKey } from '../../../shared/grading/types';
 import './HistoryView.css';
 
-const SUBSCORE_LABELS: Record<string, string> = {
+// Every key in SUBSCORE_KEYS must have a label here — TS enforces this Record
+// covers all of them, so adding a subscore without a label fails to compile.
+const SUBSCORE_LABELS: Record<SubscoreKey, string> = {
   syntactic_complexity: 'Syntax',
   verbal_range: 'Verbal range',
   lexical_sophistication: 'Lexicon',
@@ -12,6 +15,8 @@ const SUBSCORE_LABELS: Record<string, string> = {
 };
 
 function CategoryCard({ trend }: { trend: CategoryTrend }) {
+  if (trend.weeks.length === 0) return null;
+
   const accuracyValues = trend.weeks.map((w) => Math.round((w.accuracy ?? 0) * 100));
   const exposureValues = trend.weeks.map((w) => w.exposure);
   const labels = trend.weeks.map((w) => w.weekStart);
@@ -61,11 +66,11 @@ function SophisticationSection({ data }: { data: SophisticationWeeklyPoint[] }) 
         <Sparkline values={overallValues} labels={labels} color="var(--series-1)" />
       </div>
       <div className="history-subscores">
-        {Object.entries(SUBSCORE_LABELS).map(([key, label]) => {
-          const values = data.map((d) => Math.round(d.subscores[key as keyof typeof d.subscores] * 10) / 10);
+        {SUBSCORE_KEYS.map((key) => {
+          const values = data.map((d) => Math.round(d.subscores[key] * 10) / 10);
           return (
             <div className="history-substat" key={key}>
-              <div className="history-substat__label">{label}</div>
+              <div className="history-substat__label">{SUBSCORE_LABELS[key]}</div>
               <Sparkline values={values} labels={labels} color="var(--series-1)" height={24} width={80} />
             </div>
           );
@@ -81,8 +86,9 @@ function HistoryView() {
 
   useEffect(() => {
     fetch('/api/history')
-      .then((res) => res.json())
-      .then((data) => {
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? 'Failed to load history');
         setTrends(data as HistoryTrends);
         setStatus('ready');
       })

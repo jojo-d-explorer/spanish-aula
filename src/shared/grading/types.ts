@@ -50,13 +50,15 @@ export interface CategorySummaryEntry {
   correct: number;
 }
 
-export interface SophisticationSubscores {
-  syntactic_complexity: number;
-  verbal_range: number;
-  lexical_sophistication: number;
-  cohesion: number;
-  ambition: number;
-}
+export const SUBSCORE_KEYS = [
+  'syntactic_complexity',
+  'verbal_range',
+  'lexical_sophistication',
+  'cohesion',
+  'ambition',
+] as const;
+export type SubscoreKey = (typeof SUBSCORE_KEYS)[number];
+export type SophisticationSubscores = Record<SubscoreKey, number>;
 
 // The grading contract — see PRD §4. Load-bearing for progress trends;
 // do not simplify to a flat error list.
