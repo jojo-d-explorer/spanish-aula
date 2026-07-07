@@ -7,9 +7,10 @@ the always-loaded context.
 
 A single-user, research-backed Spanish practice web app (working title *Aula*)
 that is also a full-stack portfolio piece. Four interconnected tabs around a
-persistent categorized **error log**. **We are building v1 = the Writing tab
-only**, deployed, before any other tab. Do not build Workbook, Flashcards, or
-Lessons yet, even if it seems helpful.
+persistent categorized **error log**, plus a sibling **Word Bank** capture
+mechanism. **v1 (Writing tab) is shipped. We are now building Phase 2:
+hardening the error-log spine and adding the Word Bank.** Do not build
+Workbook, Flashcards, or Lessons yet, even if it seems helpful.
 
 ## Owner context (informs generated Spanish, never leaks into UI)
 
@@ -50,6 +51,21 @@ Lessons yet, even if it seems helpful.
 - **Shared modules, not copies:** the error taxonomy (enum), the grading rubric,
   and the sophistication rubric live in one place each and are imported by every
   tab that needs them.
+- **Error taxonomy is frozen** (PRD §4 / §8.1) — the 25-category enum lives in
+  one shared module and is never redefined per-tab or renamed without a
+  migration.
+- **No rollup/cache table for error trends.** Compute 14-day-window trends and
+  the avoidance flag at read time directly from `error_observations`. Raw
+  observations are the only source of truth (PRD §8.2–8.3).
+- **Word Bank capture stays unstructured at insert time.** `term` is free text
+  (word or phrase, no length constraint), with no forced grammatical
+  classification — classification/dedup happens later at export time, not in
+  this phase (PRD §8.4).
+- **Migration safety, non-negotiable:** before altering any existing table,
+  back up current Supabase data, write the change as a versioned migration
+  file (never a manual dashboard edit), and test it against a copy of real
+  production data — not an empty dev database. Real Phase 1 entries already
+  exist and must survive every Phase 2 migration (PRD §8.5).
 
 ## Suggested structure (adjust as needed, keep feature-first)
 
@@ -57,6 +73,7 @@ Lessons yet, even if it seems helpful.
 /src
   /features
     /writing        # v1: prompt gen, entry box, feedback view, history
+    /word-bank      # phase 2: floating "+ Word" capture affordance
   /shared
     /grading        # rubric + grading contract types (shared enum, schemas)
     /prompts        # templates parameterized by dialect + dele_level
@@ -80,9 +97,26 @@ _(Fill in after scaffold, e.g.)_
 - `npm run build` — production build
 - `vercel deploy` — deploy
 
-## Definition of done for v1
+## Definition of done for v1 (shipped)
 
 Deployed URL, works on his phone: generate a DELE-calibrated prompt → write →
 receive dual-axis feedback in the Dra. Restrepo voice → entry + tagged
 observations persist → History shows per-category accuracy and exposure trends
 with noise-controlled trailing windows.
+
+## Definition of done for Phase 2 (current target — see PRD §8.6)
+
+- Taxonomy is a single frozen enum, imported everywhere, matching the 25
+  categories in PRD §4 exactly.
+- A category with 4 in-window (trailing 14 days) obligatory contexts shows no
+  trend; one with 5 does.
+- A synthetic case with 3 in-window incorrect-and-obligatory observations
+  triggers the escalation flag.
+- A synthetic case with a current-window exposure drop to less than half of
+  the prior 14-day window, with flat-or-rising accuracy, triggers the
+  avoidance flag.
+- A Word Bank entry — tested with both a single word and a multi-word phrase —
+  saves correctly from at least two different tabs and persists across a
+  page refresh.
+- All existing Phase 1 entries and observations are intact and queryable after
+  the migration runs.

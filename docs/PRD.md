@@ -23,6 +23,10 @@ drives lesson/workbook targeting and flashcard minting; a category crossing an
 error threshold escalates to a targeted micro-lesson (per the Persona doc's
 "3 repeats → micro-lesson" commitment). Progress = that error rate falling.
 
+A second, sibling capture mechanism — the **Word Bank** (§8) — lets any word or
+phrase be captured from anywhere in the app, independent of the error log, as
+raw material for the Flashcard tab.
+
 ---
 
 ## 2. Non-negotiable design principles
@@ -49,6 +53,8 @@ error threshold escalates to a targeted micro-lesson (per the Persona doc's
 v1 is a genuinely usable daily study tool *and* a legitimate portfolio slice.
 Ship and deploy this **before** building tabs 2–4, so the app returns Spanish
 practice within a week or two and the rest is built around a working tool.
+
+**Status: shipped.**
 
 ### v1 user flow
 1. Open app → **Writing** tab → tap **Generate prompt**.
@@ -112,7 +118,7 @@ comparability.
 }
 ```
 
-### Error taxonomy (extensive; shared enum across tabs)
+### Error taxonomy (extensive; shared enum across tabs; frozen — see §8)
 `ser_estar` · `preterite_vs_imperfect` · `subjunctive_trigger` ·
 `subjunctive_form` · `conditional` · `future_tense` · `present_perfect` ·
 `gender_agreement` · `number_agreement` · `article_use` · `por_para` ·
@@ -130,13 +136,15 @@ emocionado, embarazada, exquisito, …) as a first-class interference signal.
 
 ## 5. Progress metrics (the History view)
 
-Per category, two trend lines over a **trailing window**:
-- **Accuracy** = correct ÷ obligatory contexts.
-- **Exposure** = obligatory contexts (attempt volume).
+Per category, two trend lines over a **trailing 14-day window** (see §8 for the
+exact formulas):
+- **Accuracy** = correct ÷ obligatory contexts, within the window.
+- **Exposure** = obligatory contexts (attempt volume), within the window.
 
 Rising exposure + rising accuracy = real progress. Rising accuracy + falling
-exposure = possible avoidance → **flagged**, not celebrated. Trends stay hidden
-until a category has minimum data (noise control). Sophistication overall +
+exposure = possible avoidance → **flagged**, not celebrated (exact rule in §8).
+A trend is only shown once a category reaches **5 obligatory contexts within
+the current 14-day window** (noise control). Sophistication overall +
 subscores tracked as a secondary series; a persistently low subscore
 (e.g. `verbal_range`) is a targeting hook for the Lessons/Workbook tabs later.
 
@@ -164,11 +172,104 @@ subscores tracked as a secondary series; a persistently low subscore
 
 ## 7. Roadmap
 
-| Phase | Deliverable |
-|---|---|
-| 0 | Scaffold: repo, stack, tabbed shell, serverless proxy, one live API round-trip |
-| 1 | **Writing tab** — prompt gen + dual-axis grading + history/trends → **deploy (v1)** |
-| 2 | Error-log spine hardened; taxonomy trends powering targeting |
-| 3 | Lessons tab — on-demand e-lecture, seedable from error log |
-| 4 | Workbook tab — exercises targeting weak categories; **Anki export ingestion** |
-| 5 | Flashcards tab — TSV export in your note-type schema; weak-item detection |
+| Phase | Deliverable | Status |
+|---|---|---|
+| 0 | Scaffold: repo, stack, tabbed shell, serverless proxy, one live API round-trip | Done |
+| 1 | **Writing tab** — prompt gen + dual-axis grading + history/trends → **deploy (v1)** | Done |
+| 2 | Error-log spine hardened; taxonomy trends powering targeting; **Word Bank** added | **Next — see §8** |
+| 3 | Lessons tab — on-demand e-lecture, seedable from error log | Not started |
+| 4 | Workbook tab — exercises targeting weak categories; **Anki export ingestion** | Not started |
+| 5 | Flashcards tab — TSV export in your note-type schema; weak-item detection | Not started |
+
+---
+
+## 8. Phase 2 Detailed Spec: Error-Log Trends + Word Bank
+
+### 8.1 Taxonomy — frozen
+
+The 25-category enum in §4 is the literal, frozen source of truth for Phase 2
+onward. Defined once in a shared module, imported by every tab — never
+redefined per-tab, never renamed without a migration.
+
+### 8.2 Schema
+
+No rollup/cache table. At single-user, low-daily-volume scale, computing
+14-day-window trends on the fly from raw observations is trivial, and skipping
+a cache table removes an entire class of cache-vs-source-of-truth consistency
+bugs. Raw observations are the only source of truth; trends are queries.
+
+```sql
+-- source of truth, one row per graded observation
+error_observations (
+  id, entry_id (FK), category (enum, frozen taxonomy per §8.1),
+  obligatory_context boolean, correct boolean,
+  excerpt, correction, note, portuguese_interference boolean,
+  created_at
+)
+
+-- open capture, no classification at insert time
+word_bank (
+  id, term text,                -- word OR phrase, unconstrained, whatever
+                                 -- form it was encountered in
+  context_sentence text nullable,
+  note text nullable,
+  source_tab text,
+  dedup_status text default 'pending',  -- checked later, at export/batch time,
+                                         -- against the external master word list
+  created_at
+)
+```
+
+### 8.3 Trend logic (computed at read time)
+
+- **Window:** trailing 14 days from now.
+- **Minimum data:** a category's trend displays only if its count of
+  `obligatory_context = true` observations **within the current 14-day window**
+  is ≥ 5. Below that, show "not enough recent data" rather than a trend.
+- **Escalation (3-repeats rule):** a category is flagged for a targeted
+  micro-lesson when its count of `obligatory_context = true AND correct = false`
+  observations **within the current 14-day window** is ≥ 3.
+- **Avoidance flag:** compare the current 14-day window to the *prior* 14-day
+  window (days 15–28 ago). Flag a category when exposure (obligatory-context
+  count) in the current window is less than half of the prior window's
+  exposure, while accuracy in the current window is flat or higher than the
+  prior window's accuracy. This requires querying two window-periods of
+  history at read time — no separate storage needed since raw data holds it all.
+
+### 8.4 Word Bank
+
+- **Capture UI:** a single persistent "+ Word" affordance, available on every
+  tab (small floating control). Opens a lightweight 3-field form:
+  - `term` (required) — a word or a phrase, free text, no length constraint,
+    no forced grammatical classification (no verb/tense/category tagging at
+    capture time — that's deferred entirely to the export/batch step, matching
+    the existing master-word-list workflow of raw entry → later marked
+    ✓ In Deck / ADD).
+  - `context_sentence` (optional)
+  - `note` (optional)
+  - Auto-stamped: `source_tab`, `created_at`.
+- **Explicitly out of scope this phase:** search, filter, edit views, and any
+  dedup-checking UI. The bank is being *filled*, not yet *managed* — that
+  comes later, at flashcard-generation time (Phase 5).
+
+### 8.5 Migration safety
+
+Before altering any existing table: back up current Supabase data (real Phase 1
+entries/observations already exist and must not be lost); write schema changes
+as a versioned migration file, not a manual dashboard edit; test the migration
+against a copy of real production data, not an empty dev database.
+
+### 8.6 Definition of done for Phase 2
+
+- Taxonomy is a single frozen enum, imported everywhere, matching the 25
+  categories in §4 exactly.
+- A category with 4 in-window obligatory contexts shows no trend; one with 5 does.
+- A synthetic case with 3 in-window incorrect-and-obligatory observations
+  triggers the escalation flag.
+- A synthetic case with a current-window exposure drop to less than half of
+  the prior window, with flat-or-rising accuracy, triggers the avoidance flag.
+- A Word Bank entry — tested with both a single word and a multi-word phrase —
+  saves correctly from at least two different tabs and persists across a
+  page refresh.
+- All existing Phase 1 entries and observations are intact and queryable after
+  the migration runs.
