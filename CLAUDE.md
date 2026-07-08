@@ -8,9 +8,11 @@ the always-loaded context.
 A single-user, research-backed Spanish practice web app (working title *Aula*)
 that is also a full-stack portfolio piece. Four interconnected tabs around a
 persistent categorized **error log**, plus a sibling **Word Bank** capture
-mechanism. **v1 (Writing tab) is shipped. We are now building Phase 2:
-hardening the error-log spine and adding the Word Bank.** Do not build
-Workbook, Flashcards, or Lessons yet, even if it seems helpful.
+mechanism. **v1 (Writing tab) and Phase 2 (error-log spine + Word Bank) are
+shipped. We are now building Phase 3: the Lessons tab, built as a
+conversational thread, not a one-shot generated document.** Do not build
+Workbook or Flashcards yet — Phase 3 may reference Workbook as a future
+stub/link but must not implement any Workbook logic.
 
 ## Owner context (informs generated Spanish, never leaks into UI)
 
@@ -25,6 +27,10 @@ Workbook, Flashcards, or Lessons yet, even if it seems helpful.
   fitness, VC/finance, plus parenting vocabulary.
 - Feedback persona: **Dra. Restrepo** — warm, rigorous, non-critical about the
   *content* of his day, corrects every error of *form*.
+- **Owner explicitly wants the app to stay lean and adaptable** as his level
+  rises (A2 → B1 → B2) — prefer extending an existing mechanism over building
+  new infrastructure. See PRD §2 and §9.6 for the concrete design pattern
+  this produced (new lesson threads instead of staleness-tracking/regeneration).
 
 ## Stack
 
@@ -40,6 +46,7 @@ Workbook, Flashcards, or Lessons yet, even if it seems helpful.
   URLs/query strings.
 - **`dialect` and `dele_level` are parameters**, injected into prompt templates.
   Default `dialect = "mx"`. Never hardcode dialect- or level-specific content.
+  This applies to every message in a Lessons thread exactly as it does to Writing.
 - **Runtime model routing:** grading + lessons → Sonnet; workbook + flashcard
   generation → Haiku; Anki parsing → plain Python, no LLM. Do **not** call
   Fable/Opus at runtime.
@@ -59,13 +66,33 @@ Workbook, Flashcards, or Lessons yet, even if it seems helpful.
   observations are the only source of truth (PRD §8.2–8.3).
 - **Word Bank capture stays unstructured at insert time.** `term` is free text
   (word or phrase, no length constraint), with no forced grammatical
-  classification — classification/dedup happens later at export time, not in
-  this phase (PRD §8.4).
+  classification — classification/dedup happens later at export time. The
+  "+ Word" affordance is app-level (every tab), not tab-specific — do not
+  rebuild it per-tab (PRD §8.4).
+- **No tab may write to `error_observations` to alter the escalation or
+  avoidance flags.** Those flags are read-only derived signals; they clear
+  only through the natural trailing-window aging-out described in PRD §8.3.
+  This applies specifically to Lessons: taking a lesson on a flagged category
+  must NOT clear or suppress that flag (PRD §9.10).
+- **Lessons does not duplicate the History view.** The existing per-category
+  trend/badge view (shipped in Phase 2) is the only place flagged categories
+  are browsed. Do not build a second "weak categories" widget inside Lessons
+  (PRD §9.3).
+- **Lessons is a conversational thread, not a single generated block.** Store
+  every message in `lesson_messages`; a past `lesson_log` entry reopens the
+  original thread unchanged — never regenerated. Depth is decided by the
+  model on the opening reply only; going deeper or veering into a subtopic is
+  just a normal follow-up message, not a special feature (PRD §9.4–9.5).
+- **No staleness-detection or "regenerate at current level" feature.** As the
+  owner's DELE level rises, a topic is revisited by opening a **new** thread
+  via the same freeform input — never by editing or refreshing an old one.
+  Each thread stores `dele_level_at_creation` so the log itself becomes a
+  growth record (PRD §9.6).
 - **Migration safety, non-negotiable:** before altering any existing table,
   back up current Supabase data, write the change as a versioned migration
   file (never a manual dashboard edit), and test it against a copy of real
-  production data — not an empty dev database. Real Phase 1 entries already
-  exist and must survive every Phase 2 migration (PRD §8.5).
+  production data — not an empty dev database. This applies to adding the new
+  `lesson_log` and `lesson_messages` tables.
 
 ## Suggested structure (adjust as needed, keep feature-first)
 
@@ -73,7 +100,8 @@ Workbook, Flashcards, or Lessons yet, even if it seems helpful.
 /src
   /features
     /writing        # v1: prompt gen, entry box, feedback view, history
-    /word-bank      # phase 2: floating "+ Word" capture affordance
+    /word-bank      # phase 2: floating "+ Word" capture affordance (app-level)
+    /lessons        # phase 3: freeform request, threaded chat view, log/tally
   /shared
     /grading        # rubric + grading contract types (shared enum, schemas)
     /prompts        # templates parameterized by dialect + dele_level
@@ -104,19 +132,36 @@ receive dual-axis feedback in the Dra. Restrepo voice → entry + tagged
 observations persist → History shows per-category accuracy and exposure trends
 with noise-controlled trailing windows.
 
-## Definition of done for Phase 2 (current target — see PRD §8.6)
+## Definition of done for Phase 2 (shipped)
 
-- Taxonomy is a single frozen enum, imported everywhere, matching the 25
-  categories in PRD §4 exactly.
-- A category with 4 in-window (trailing 14 days) obligatory contexts shows no
-  trend; one with 5 does.
-- A synthetic case with 3 in-window incorrect-and-obligatory observations
-  triggers the escalation flag.
-- A synthetic case with a current-window exposure drop to less than half of
-  the prior 14-day window, with flat-or-rising accuracy, triggers the
-  avoidance flag.
-- A Word Bank entry — tested with both a single word and a multi-word phrase —
-  saves correctly from at least two different tabs and persists across a
-  page refresh.
-- All existing Phase 1 entries and observations are intact and queryable after
-  the migration runs.
+Taxonomy is a single frozen enum, imported everywhere. Trend thresholds
+(4 in-window obligatory contexts → no trend, 5 → shows), escalation (3
+in-window incorrect-and-obligatory → red flag), and avoidance (exposure drop
+to <half of prior window with flat/rising accuracy → yellow flag) all verified
+against synthetic cases, with escalation also confirmed live on real data
+(`ser_estar`). Word Bank saves both single words and multi-word phrases from
+multiple tabs and persists across refresh. All Phase 1 entries/observations
+intact after migration.
+
+## Definition of done for Phase 3 (current target — see PRD §9.11)
+
+- Freeform request input opens a new lesson thread; accepts both macro
+  (grammar/category) and micro (lexical) requests; backend classifies and
+  populates `topic_category` or `topic_freeform` accordingly.
+- The model decides opening depth without a user-facing depth selector.
+- The learner can reply within a thread to go deeper or pivot to a related
+  subtopic, using a normal chat input — verified with at least one thread
+  that includes a follow-up message.
+- Comprehension checks, when present, are recognition-based, not production.
+- Generated content respects `dialect` and `dele_level`; each thread stores
+  `dele_level_at_creation`.
+- Full thread persisted in `lesson_messages`; revisiting a `lesson_log` entry
+  shows the original thread unchanged, not a regeneration.
+- Log/tally view lists past lesson threads, countable by category, showing
+  the level at which each was created.
+- A synthetic test confirms taking a lesson on an escalated category does not
+  clear the escalation flag — only the trailing window does.
+- The global Word Bank "+ Word" affordance is confirmed working inside the
+  Lessons tab (regression test, not new build).
+- Migration for the new `lesson_log` and `lesson_messages` tables follows the
+  standard migration safety rule above.
