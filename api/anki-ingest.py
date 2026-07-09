@@ -10,17 +10,53 @@ Phase 5 (Flashcards) — not built here.
 """
 
 import base64
+import hashlib
+import hmac
 import io
 import json
 import math
+import os
 import sqlite3
 import tempfile
 import time
 import zipfile
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
 import zstandard
+
+# TEMPORARY access-code gate check — mirrors src/shared/auth/accessGate.ts.
+# This is the read-path-only Python function, so it can't import that TS
+# module across runtimes; keep this in sync if the signing scheme changes.
+# See accessGate.ts's header comment for the full context (not Phase 6 auth,
+# just a stopgap since the repo is public now).
+ACCESS_COOKIE_NAME = "aula_session"
+
+
+def _signing_key() -> bytes:
+    access_code = os.environ.get("APP_ACCESS_CODE", "")
+    return hashlib.sha256(f"{access_code}:aula-session-signing".encode()).digest()
+
+
+def _is_valid_session_cookie(value: str) -> bool:
+    if not value or "." not in value:
+        return False
+    payload, _, signature = value.partition(".")
+    expected = hmac.new(_signing_key(), payload.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        return False
+    try:
+        return time.time() * 1000 < float(payload)
+    except ValueError:
+        return False
+
+
+def _has_valid_access(request_handler) -> bool:
+    cookies = SimpleCookie()
+    cookies.load(request_handler.headers.get("Cookie", ""))
+    value = cookies[ACCESS_COOKIE_NAME].value if ACCESS_COOKIE_NAME in cookies else ""
+    return _is_valid_session_cookie(value)
 
 # Headroom under Vercel's ~4.5MB request body limit. Base64 inflates the raw
 # file ~33%, so this caps the actual .colpkg at roughly 3.3MB -- comfortably
@@ -133,6 +169,10 @@ def parse_colpkg(raw: bytes) -> list[dict]:
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
+        if not _has_valid_access(self):
+            self._send_json(401, {"error": "Unauthorized."})
+            return
+
         content_length = int(self.headers.get("Content-Length", 0))
 
         if content_length > MAX_BODY_BYTES:

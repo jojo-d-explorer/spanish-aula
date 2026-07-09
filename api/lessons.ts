@@ -7,6 +7,7 @@ import { createLessonThread, fetchLessonLog } from '../src/shared/db/lessons.js'
 import { isDeleLevel, type DialectCode, type DeleLevel } from '../src/shared/prompts/writingPrompt.js';
 import type { LessonClassification, LessonMessage } from '../src/shared/lessons/types.js';
 import { logUsage } from '../src/shared/db/usage.js';
+import { requireAccess } from '../src/shared/auth/accessGate.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -33,6 +34,7 @@ const LESSON_CLASSIFIER_TOOL: Anthropic.Tool = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAccess(req, res)) return;
   if (req.method === 'GET') {
     try {
       const lessons = await fetchLessonLog();

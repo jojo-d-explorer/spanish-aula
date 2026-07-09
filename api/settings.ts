@@ -2,8 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSettings, updateDeleLevel, getRecentDeleLevelEstimates } from '../src/shared/db/settings.js';
 import { computeNudge, MIN_ENTRIES_FOR_NUDGE } from '../src/shared/settings/nudge.js';
 import { isDeleLevel, DELE_LEVEL_OPTIONS } from '../src/shared/prompts/writingPrompt.js';
+import { requireAccess } from '../src/shared/auth/accessGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAccess(req, res)) return;
   if (req.method === 'GET') {
     // Independent reads — run in parallel, but isolate failures: settings
     // is load-bearing, the nudge is a nice-to-have on top of it (mirrors the

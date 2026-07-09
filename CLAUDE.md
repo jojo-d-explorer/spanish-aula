@@ -90,6 +90,14 @@ path, or any auth/billing (Phase 6) yet.
   `source_tab` column and the `usage_log` table added this phase.
 - **Do not build Phase 6 (auth, billing, tiers, BYO-key, onboarding).** Only
   the metering groundwork (above) is in scope now.
+- **Temporary access-code gate — not Phase 6 auth.** The live deployment is
+  gated by a single shared passphrase (`APP_ACCESS_CODE`) + a signed
+  HTTP-only cookie, checked independently by every serverless function via
+  `requireAccess()` — see `src/shared/auth/accessGate.ts`. This exists only
+  because the repo is now public and the deployment can't be left wide open;
+  it has no accounts, no per-user anything, and is explicitly not the
+  multi-user system in PRD §11. Trivial to rip out later without touching
+  any Phase 0-5 feature code.
 
 ## Suggested structure (feature-first)
 

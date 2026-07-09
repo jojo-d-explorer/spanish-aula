@@ -61,9 +61,10 @@ accuracy with falling attempts gets flagged, not celebrated.
 | `ANTHROPIC_API_KEY` | `/api` functions only, never the browser | Yes |
 | `SUPABASE_URL` | `/api` functions only | Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | `/api` functions only, never the browser | Yes |
+| `APP_ACCESS_CODE` | `/api` functions only — temporary access-code gate, see `src/shared/auth/accessGate.ts` | Yes |
 
 Local dev: run `vercel link` once to connect this directory to the Vercel
-project, then `vercel env pull .env.local` to download all three (gitignored,
+project, then `vercel env pull .env.local` to download all four (gitignored,
 never committed). Production: set the same variables in the Vercel dashboard
 under Project → Settings → Environment Variables.
 

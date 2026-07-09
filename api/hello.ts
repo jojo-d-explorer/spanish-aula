@@ -1,10 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
 import { logUsage } from '../src/shared/db/usage.js';
+import { requireAccess } from '../src/shared/auth/accessGate.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAccess(req, res)) return;
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed. Use POST.' });
     return;

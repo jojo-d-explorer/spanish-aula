@@ -1,8 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { fetchHistoryData } from '../src/shared/db/history.js';
 import { computeTrends } from '../src/shared/history/trends.js';
+import { requireAccess } from '../src/shared/auth/accessGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAccess(req, res)) return;
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed. Use GET.' });
     return;

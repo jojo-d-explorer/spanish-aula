@@ -5,10 +5,12 @@ import { appendLessonMessage, fetchLessonThread } from '../src/shared/db/lessons
 import { getSettings } from '../src/shared/db/settings.js';
 import type { LessonMessage } from '../src/shared/lessons/types.js';
 import { logUsage } from '../src/shared/db/usage.js';
+import { requireAccess } from '../src/shared/auth/accessGate.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAccess(req, res)) return;
   const id = typeof req.query.id === 'string' ? req.query.id : '';
   if (!id) {
     res.status(400).json({ error: 'id query parameter is required.' });

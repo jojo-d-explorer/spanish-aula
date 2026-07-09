@@ -14,6 +14,7 @@ import { isDeleLevel, type DialectCode, type DeleLevel } from '../src/shared/pro
 import { ERROR_CATEGORIES, type ErrorCategory } from '../src/shared/grading/types.js';
 import { logUsage } from '../src/shared/db/usage.js';
 import type { WorkbookSession, WorkbookSessionSource, ExerciseItem } from '../src/shared/workbook/types.js';
+import { requireAccess } from '../src/shared/auth/accessGate.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -86,6 +87,7 @@ function toExerciseItem(raw: RawGeneratedItem, fallbackCategory: ErrorCategory):
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAccess(req, res)) return;
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed. Use POST.' });
     return;

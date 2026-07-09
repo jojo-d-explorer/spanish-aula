@@ -23,5 +23,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["src/shared/db"]
+  "exclude": ["src/shared/db", "src/shared/auth"]
 }

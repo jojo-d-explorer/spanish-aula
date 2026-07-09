@@ -5,10 +5,12 @@ import { buildGradingSystemPrompt, GRADING_TOOL } from '../src/shared/grading/ru
 import { persistGradedEntry } from '../src/shared/db/entries.js';
 import { isDeleLevel, type DialectCode, type DeleLevel } from '../src/shared/prompts/writingPrompt.js';
 import { logUsage } from '../src/shared/db/usage.js';
+import { requireAccess } from '../src/shared/auth/accessGate.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAccess(req, res)) return;
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed. Use POST.' });
     return;
