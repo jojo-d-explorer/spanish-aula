@@ -54,10 +54,11 @@ raw material for the Flashcard tab.
 - **Lean over clever.** Prefer extending an existing mechanism over building new
   infrastructure. The app should scale with the learner's rising level without
   accumulating complexity.
-- **Explicit vs. implicit knowledge get different language treatment.** Input,
-  examples, and prompts stay in Spanish; declarative "why" explanations and
-  contrastive notes are delivered in English at lower levels, shifting toward
-  Spanish as level rises (§9.12).
+- **Explicit vs. implicit knowledge get different language treatment, going
+  forward from Phase 4.** Input, examples, and prompts stay in Spanish;
+  declarative "why" explanations and contrastive notes are delivered in
+  English at lower levels, shifting toward Spanish as level rises. Applies to
+  new Workbook rationale text; shipped Lessons is not being retrofitted.
 - **Metered from the proxy, single-user today, multi-tenant-ready.** Every model
   call already flows through the serverless proxy; that proxy logs tokens-in /
   tokens-out per call from day one (§6.1). This costs nothing while single-user
@@ -230,11 +231,11 @@ against a copy of real production data.
 
 Conversational threads (`lesson_log` + `lesson_messages`), model-decided
 opening depth, recognition-only comprehension checks, `dele_level_at_creation`
-stamped per thread (growth record; no staleness machinery). Mixed-language
-explanation weighted by level (§9.12): English for core rule + contrastive
-notes, Spanish for examples/checks/framing, shifting toward Spanish as level
-rises. Lessons never writes to `error_observations`. Full detail retained in
-repo history / CLAUDE.md.
+stamped per thread (growth record; no staleness machinery). Lessons never
+writes to `error_observations`. Shipped Spanish-first, with no mixed-language
+weighting — that rule (§2) applies going forward, starting with Workbook, and
+is not a retrofit item for Lessons. Full detail retained in repo history /
+CLAUDE.md.
 
 ---
 

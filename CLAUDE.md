@@ -49,9 +49,10 @@ path, or any auth/billing (Phase 6) yet.
 - **`dialect` and `dele_level` are parameters**, injected into prompt templates.
   Default `dialect = "mx"`. Never hardcode dialect/level content. Workbook
   exercises are calibrated to these exactly like Writing/Lessons.
-- **Explanatory content is mixed-language weighted by `dele_level`** (Lessons,
-  and any Workbook rationale text): English for core rule + English/Portuguese
-  contrastive notes; Spanish for examples, exercises, checks (PRD §9.12).
+- **Explanatory content is mixed-language weighted by `dele_level`, going
+  forward from Phase 4** (new Workbook rationale text): English for core rule
+  + English/Portuguese contrastive notes; Spanish for examples, exercises,
+  checks. Not a retrofit for shipped Lessons, which stays Spanish-first as-is.
 - **Runtime model routing:** grading + lessons → Sonnet; workbook + flashcard
   generation → Haiku; Anki parsing → plain Python, no LLM. Do **not** call
   Fable/Opus at runtime. (This routing is also the future margin story — keep
