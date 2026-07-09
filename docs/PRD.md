@@ -1,8 +1,8 @@
 # PRD — Spanish Acquisition App ("working title: *Aula*")
 
-A single-user, research-backed Spanish practice web app that also serves as a
-full-stack portfolio piece. Four interconnected tools around one spine: a
-persistent, categorized error log that turns four tabs into one system.
+A single-user (for now), research-backed Spanish practice web app that also
+serves as a full-stack portfolio piece. Four interconnected tools around one
+spine: a persistent, categorized error log that turns four tabs into one system.
 
 ---
 
@@ -10,19 +10,22 @@ persistent, categorized error log that turns four tabs into one system.
 
 Four tabs, deployed as one responsive web app usable on phone, iPad, and desktop:
 
-1. **Writing** — prompt generator + dual-axis graded feedback (v1 target).
-2. **Workbook** — research-backed exercise generator (cloze, conjugation recall,
-   sentence production, matching), targeting *your* weak categories.
-3. **Flashcards** — generate Anki-import TSV in your exact note-type schema;
-   ingest an Anki export to detect weak items.
-4. **Lessons** — on-demand, conversational e-lectures on a tense/topic; can seed
-   from the error log.
+1. **Writing** — prompt generator (or free journaling) + dual-axis graded
+   feedback.
+2. **Workbook** — research-backed exercise generator (contextual cloze,
+   conjugation recall, sentence production, isolated gap-fill), targeting
+   *your* weak categories.
+3. **Flashcards** — generate Anki-import cards in your exact note-type schema
+   (with dedup against the master list); ingest an Anki export to detect weak
+   items.
+4. **Lessons** — on-demand, conversational e-lectures on a tense/topic; can
+   seed from the error log.
 
 **The spine.** Every tab reads from and writes to a persistent, categorized
 **error log**. Writing and workbook mistakes are tagged by category; the log
 drives lesson/workbook targeting and flashcard minting; a category crossing an
-error threshold escalates to a targeted micro-lesson (per the Persona doc's
-"3 repeats → micro-lesson" commitment). Progress = that error rate falling.
+error threshold escalates to a targeted micro-lesson. Progress = that error
+rate falling.
 
 A second, sibling capture mechanism — the **Word Bank** — lets any word or
 phrase be captured from anywhere in the app, independent of the error log, as
@@ -33,42 +36,49 @@ raw material for the Flashcard tab.
 ## 2. Non-negotiable design principles
 
 - **Research-backed, not busywork.** Every exercise type maps to a named
-  principle (retrieval practice, generation effect, interleaving, cloze deletion,
-  elaborative interrogation). Surfaced in the README as the piece's point of view.
+  principle (retrieval practice, generation effect, interleaving, cloze
+  deletion, elaborative interrogation), surfaced in the README.
 - **DELE-pegged.** Difficulty and rubrics calibrated to DELE descriptors.
-  Current level is a **parameter** (A2 now → B1 → B2), not hardcoded.
-- **Dialect-parameterized.** `dialect` is a single parameter injected into every
-  prompt. Default = **Mexican**; grader notes Rioplatense divergences where
-  relevant. Future dialect-switching is a config change, not a rewrite.
-- **Dual-axis feedback.** Accuracy (every error corrected) and sophistication
-  (1–10 linguistic ambition) are scored **independently**, so reaching for hard
-  structures is rewarded even when the attempt is imperfect. Feedback tone is
-  warm and non-critical about *content*, rigorous about *form*.
-- **Avoidance-proof progress metric.** Accuracy is measured as
-  **correct ÷ obligatory contexts** per category, never raw error counts.
+  Level is a **parameter** (A2 → B1 → B2), not hardcoded.
+- **Dialect-parameterized.** `dialect` is a single parameter injected into
+  every prompt. Default = **Mexican**; note Rioplatense divergences where
+  relevant.
+- **Dual-axis feedback.** Accuracy and sophistication scored **independently**,
+  so reaching for hard structures is rewarded even when imperfect. Warm about
+  *content*, rigorous about *form*.
+- **Avoidance-proof progress metric.** Accuracy = **correct ÷ obligatory
+  contexts** per category, never raw error counts.
 - **Raw data is the only source of truth.** No tab writes retroactive edits to
-  `error_observations` to make a metric look better. Signals like the
-  escalation flag clear only through genuine new data (the trailing window),
-  never through a manual reset.
-- **Lean over clever.** When a feature could be built as either new
-  infrastructure or a natural extension of an existing mechanism (freeform
-  request, conversation thread, existing badge view), prefer the extension.
-  The app should stay easy to carry forward as the learner's level rises,
-  not accumulate staleness-management or level-migration machinery.
+  `error_observations` to make a metric look better; the escalation flag clears
+  only through the trailing window, never a manual reset.
+- **Lean over clever.** Prefer extending an existing mechanism over building new
+  infrastructure. The app should scale with the learner's rising level without
+  accumulating complexity.
+- **Explicit vs. implicit knowledge get different language treatment.** Input,
+  examples, and prompts stay in Spanish; declarative "why" explanations and
+  contrastive notes are delivered in English at lower levels, shifting toward
+  Spanish as level rises (§9.12).
+- **Metered from the proxy, single-user today, multi-tenant-ready.** Every model
+  call already flows through the serverless proxy; that proxy logs tokens-in /
+  tokens-out per call from day one (§6.1). This costs nothing while single-user
+  but is the load-bearing foundation for any future pricing, usage caps, or
+  "know your own cost" feature (§11). Auth/billing/tiers are **not** built yet.
 
 ---
 
-## 3. v1 scope — Writing tab only, deployed, on your phone
+## 3. Writing tab (shipped)
 
-**Status: shipped.** See CLAUDE.md for full v1 flow and grading contract.
+Prompt-generated **or** free-journal entries go through one grading contract
+(§4) and feed the same error log. See CLAUDE.md for the full shipped flow.
 
 ---
 
 ## 4. The grading contract (grader → app JSON)
 
-The grader **must** emit per-category obligatory-context accounting from entry #1
-— this is the one thing that can't be retrofitted without breaking trend
-comparability.
+The grader **must** emit per-category obligatory-context accounting from entry
+#1 — the one thing that can't be retrofitted without breaking trend
+comparability. Applies identically to prompted and free-journal entries, and
+(for accuracy tagging) to Workbook sentence-production answers.
 
 ```json
 {
@@ -93,11 +103,8 @@ comparability.
   "sophistication": {
     "overall": 4,
     "subscores": {
-      "syntactic_complexity": 3,
-      "verbal_range": 4,
-      "lexical_sophistication": 5,
-      "cohesion": 4,
-      "ambition": 6
+      "syntactic_complexity": 3, "verbal_range": 4,
+      "lexical_sophistication": 5, "cohesion": 4, "ambition": 6
     },
     "notes": "…"
   },
@@ -117,39 +124,51 @@ comparability.
 `lexical_choice` · `false_friend_portuguese` · `accent_orthography` ·
 `register_formality` · `other`
 
-`false_friend_portuguese` flags known traps (familiar, grave, collar,
-emocionado, embarazada, exquisito, …) as a first-class interference signal.
-
 ---
 
 ## 5. Progress metrics (the History view)
 
-Per category, two trend lines over a **trailing 14-day window**:
-- **Accuracy** = correct ÷ obligatory contexts, within the window.
-- **Exposure** = obligatory contexts (attempt volume), within the window.
-
-Rising exposure + rising accuracy = real progress. Rising accuracy + falling
-exposure = possible avoidance → **flagged**, not celebrated (exact rule in §8.3).
-A trend is only shown once a category reaches **5 obligatory contexts within
-the current 14-day window** (noise control). Escalation flag (red badge) fires
-per §8.3. This is the surface the learner references when browsing for lesson
-topics — **Lessons does not duplicate this view** (see §9.3).
+Per category, two trend lines over a **trailing 14-day window**: accuracy
+(correct ÷ obligatory contexts) and exposure (obligatory contexts). Rising
+exposure + rising accuracy = progress; rising accuracy + falling exposure =
+avoidance (flagged). A trend shows only at ≥5 in-window obligatory contexts.
+Escalation and avoidance flags per §8.3. **Workbook observations feed these
+same trends** (§10.4) — so practice on a flagged category is what eventually
+clears its flag.
 
 ---
 
 ## 6. Stack, hosting, cost
 
-- **Frontend:** React + Vite, responsive (one build serves phone/iPad/desktop).
+- **Frontend:** React + Vite, responsive.
 - **Backend:** Vercel serverless functions **proxying the Anthropic API** so the
   key never reaches the browser.
-- **Persistence:** Supabase (Postgres). **v1 shortcut:** single-user, no login UI
-  — real auth deferred until/unless the app is shared.
-- **Runtime model routing:** Sonnet for grading (low volume, nuance) and lessons;
-  Haiku for workbook/flashcard generation (structured, higher volume); Anki
-  parsing is plain Python (no LLM). Fable/Opus are **not** used at runtime.
-- **Cost controls (day one):** hard monthly spend cap in the Anthropic console;
-  prompt caching on the stable system+rubric prefix; capped output tokens.
-  Expected solo cost: low single-digit dollars/month.
+- **Persistence:** Supabase (Postgres). Single-user; no login UI yet.
+- **Runtime model routing:** Sonnet for grading + lessons; Haiku for
+  workbook/flashcard generation; Anki parsing is plain Python (no LLM).
+  Fable/Opus not used at runtime. **This routing is also the margin story for
+  any future paid product (§11) — most calls are Haiku-cheap.**
+- **Cost controls:** hard monthly spend cap in the Anthropic console; prompt
+  caching on the stable system+rubric prefix; capped output tokens.
+
+### 6.1 Token metering (added now, for a multi-tenant future)
+
+The serverless proxy logs, per model call: timestamp, tab/feature, model used,
+`input_tokens`, `output_tokens` (both returned by the API on every response),
+and a `user_id` (a constant placeholder while single-user). Stored in a simple
+`usage_log` table. **Purpose:** with zero present cost, this establishes the
+real per-day/per-feature cost baseline needed to later price the product, show
+users their own usage, and enforce tier caps (§11). Build it into the proxy
+now; retrofitting metering after the fact means losing all the historical
+baseline data.
+
+```sql
+usage_log (
+  id, user_id text, tab text, model text,
+  input_tokens int, output_tokens int,
+  created_at
+)
+```
 
 ---
 
@@ -157,232 +176,216 @@ topics — **Lessons does not duplicate this view** (see §9.3).
 
 | Phase | Deliverable | Status |
 |---|---|---|
-| 0 | Scaffold: repo, stack, tabbed shell, serverless proxy, one live API round-trip | Done |
-| 1 | **Writing tab** — prompt gen + dual-axis grading + history/trends → **deploy (v1)** | Done |
-| 2 | Error-log spine hardened; taxonomy trends powering targeting; **Word Bank** added | Done |
-| 3 | **Lessons tab** — conversational, on-demand e-lecture, seedable from error log | **Next — see §9** |
-| 4 | Workbook tab — exercises targeting weak categories; **Anki export ingestion** | Not started |
-| 5 | Flashcards tab — TSV export in your note-type schema; weak-item detection | Not started |
+| 0 | Scaffold: repo, stack, tabbed shell, serverless proxy, one live round-trip | Done |
+| 1 | **Writing tab** — prompt gen + free journaling + dual-axis grading + trends | Done |
+| 2 | Error-log spine hardened; taxonomy trends; **Word Bank** | Done |
+| 3 | **Lessons tab** — conversational, mixed-language, seedable from error log | Done |
+| 4 | **Workbook tab** — exercises targeting weak categories; **Anki ingest (read path)**; proxy token metering | **Next** |
+| 5 | Flashcards tab — card generation in note-type schema + dedup (Anki **write** path); weak-item detection | Not started |
+| 6 | Multi-tenancy & monetization — auth, per-user metering surfaced, tiers/caps, onboarding | Parked — see §11 |
 
 ---
 
 ## 8. Phase 2 Spec (shipped): Error-Log Trends + Word Bank
 
 ### 8.1 Taxonomy — frozen
-
-The 25-category enum in §4 is the literal, frozen source of truth. Defined
-once in a shared module, imported by every tab — never redefined per-tab,
-never renamed without a migration.
+The 25-category enum in §4 is the literal, frozen source of truth. Defined once
+in a shared module, imported by every tab.
 
 ### 8.2 Schema
-
 ```sql
--- source of truth, one row per graded observation
 error_observations (
-  id, entry_id (FK), category (enum, frozen taxonomy per §8.1),
+  id, entry_id (FK), category (enum, frozen taxonomy),
   obligatory_context boolean, correct boolean,
   excerpt, correction, note, portuguese_interference boolean,
+  source_tab text,          -- 'writing' | 'workbook' (added Phase 4, §10.4)
   created_at
 )
-
--- open capture, no classification at insert time
 word_bank (
-  id, term text,                -- word OR phrase, unconstrained
-  context_sentence text nullable,
-  note text nullable,
-  source_tab text,
-  dedup_status text default 'pending',  -- checked later, at export/batch time
-  created_at
+  id, term text, context_sentence text nullable, note text nullable,
+  source_tab text, dedup_status text default 'pending', created_at
 )
 ```
-
 No rollup/cache table. Trends computed at read time from raw observations.
 
-### 8.3 Trend logic (computed at read time)
-
-- **Window:** trailing 14 days from now.
-- **Minimum data:** a category's trend displays only if its count of
-  `obligatory_context = true` observations **within the current 14-day window**
-  is ≥ 5.
-- **Escalation (3-repeats rule):** a category is flagged (red badge) when its
-  count of `obligatory_context = true AND correct = false` observations
-  **within the current 14-day window** is ≥ 3. **This flag clears only through
-  the natural aging-out of the trailing window — no tab or feature manually
-  resets it.**
-- **Avoidance flag:** (yellow badge) fires when exposure in the current window
-  is less than half of the prior 14-day window's exposure, while accuracy is
-  flat or higher than the prior window's.
+### 8.3 Trend logic (read time)
+- Window: trailing 14 days.
+- Min data: trend shows only at ≥5 in-window obligatory contexts.
+- Escalation (red): ≥3 in-window `obligatory_context AND NOT correct`. Clears
+  only via trailing-window aging-out.
+- Avoidance (yellow): current-window exposure < half of prior window's, while
+  accuracy is flat or higher.
 
 ### 8.4 Word Bank
+Single app-wide "+ Word" affordance; 3-field form (term, context_sentence,
+note); unstructured at capture; dedup deferred to export/batch time.
 
-- **Capture UI:** a single persistent "+ Word" affordance, available on
-  **every tab app-wide** (small floating control) — this is a shared,
-  app-level feature, not tab-specific. 3-field form: `term` (required, word
-  or phrase, no forced classification), `context_sentence` (optional), `note`
-  (optional). Auto-stamped `source_tab`, `created_at`.
-- Dedup against the external master word list happens later, at export/batch
-  time — not at capture.
-
-### 8.5 Migration safety (applies to every phase)
-
-Before altering any existing table: back up current Supabase data; write
-schema changes as a versioned migration file, not a manual dashboard edit;
-test the migration against a copy of real production data, not an empty dev
-database.
+### 8.5 Migration safety (every phase)
+Back up Supabase data; versioned migration file (never a dashboard edit); test
+against a copy of real production data.
 
 ---
 
-## 9. Phase 3 Spec: Lessons Tab (conversational)
+## 9. Phase 3 Spec (shipped): Lessons Tab
 
-### 9.1 Purpose (two-fold)
+Conversational threads (`lesson_log` + `lesson_messages`), model-decided
+opening depth, recognition-only comprehension checks, `dele_level_at_creation`
+stamped per thread (growth record; no staleness machinery). Mixed-language
+explanation weighted by level (§9.12): English for core rule + contrastive
+notes, Spanish for examples/checks/framing, shifting toward Spanish as level
+rises. Lessons never writes to `error_observations`. Full detail retained in
+repo history / CLAUDE.md.
 
-1. **Proactive gap-closing.** The learner can request a lesson on any category
-   the app's error log has flagged as weak (escalation/avoidance badges, per
-   §8.3), closing the loop between "the app noticed a pattern" and "the
-   learner understands why."
-2. **On-demand, learner-initiated.** The learner can request a lesson at any
-   time, at two levels:
-   - **Macro** — a grammar/structure topic, typically mapped to a taxonomy
-     category (e.g., "let's talk about direct object pronouns").
-   - **Micro** — a specific lexical item or narrow point (e.g., "I'm having a
-     hard time with `dejar` and its different meanings").
+---
 
-### 9.2 Request UI
+## 10. Phase 4 Spec: Workbook Tab + Anki Ingest (read path)
 
-A single freeform text input opens a lesson thread. No menu of categories, no
-separate macro/micro mode toggle — the learner types the request naturally,
-macro or micro, and the backend classifies it.
+### 10.1 Purpose
 
-### 9.3 No duplicate "flagged categories" browsing UI in Lessons
+Turn the error log from a *diagnostic* into a *treatment*. Workbook generates
+research-backed production exercises targeting the learner's weak categories,
+and — crucially — its results feed back into the same error log, so practicing
+a flagged category is the mechanism that eventually clears its escalation flag.
 
-**Explicitly out of scope.** The existing History view (§5, shipped in Phase
-2) already surfaces escalation (red) and avoidance (yellow) badges per
-category. The learner references that view, then opens Lessons and types a
-request. Do not build a second dashboard of weak categories inside the
-Lessons tab.
+### 10.2 Exercise types (matching dropped)
 
-### 9.4 Lesson format — conversational thread, not a single generated block
+Grounded in the learner's real teacher worksheets. Four types, each mapped to
+a research principle; **matching is intentionally excluded** (weakest evidence;
+recognition work belongs to Flashcards).
 
-A lesson is a **short chat thread**, not a one-shot document. This single
-mechanism covers three needs that would otherwise require separate features:
+1. **Contextual cloze (connected narrative).** A coherent multi-sentence
+   passage with blanks, cue verb/word in parentheses (e.g. "Diego (dormir)
+   ___ hasta muy tarde"). Maps to cloze deletion + contextual retrieval.
+   **Primary/centerpiece type** — context forces meaning-tracking, not
+   mechanical conjugation.
+2. **Conjugation recall (isolated cued sentences).** One sentence, target verb
+   + person specified (e.g. "Nosotros ___ a Managua. (VOLAR)"). Maps to
+   targeted retrieval practice. Good for a narrow weak-verb drill.
+3. **Sentence production (open personal-response).** Free-form short answers to
+   questions that elicit the target structure (e.g. "¿Prefieres té o café?").
+   Maps to the generation effect — highest value, produces the richest error-log
+   observations since it's real output.
+4. **Gap-fill (isolated, non-narrative).** Single decontextualized cued blanks,
+   for quick high-volume drilling of one form.
 
-- **Opening depth.** The model decides the depth of its first reply — some
-  topics warrant a short, direct answer; others warrant explanation +
-  examples + a lightweight comprehension check. The learner does not select
-  depth explicitly.
-- **Going deeper.** If the opening reply is too brief (e.g., "quick answer:
-  why X and not Y?"), the learner simply replies asking for more — normal
-  conversation, no special UI.
-- **Veering into a related subtopic.** If a tangent comes up mid-explanation,
-  it's just the next message in the same thread. No separate lesson entry,
-  no special "branch" mechanism.
+Any additional exercise type must be justified by a named research principle in
+the PRD before being added (per §2).
 
-Constraints that still apply regardless of how deep or long a thread gets:
-- Any comprehension check offered is **recognition-based** (e.g. "which
-  sentence uses *ser* correctly?"), not production. Production practice is
-  explicitly Workbook's job (§9.8).
-- Every message in the thread respects the same `dialect` and `dele_level`
-  parameters as the rest of the app (§2).
-- Runtime model: **Sonnet**.
+### 10.3 Session sourcing (both, like Lessons' macro/micro)
 
-### 9.5 Persistence — the thread is stored; nothing is regenerated
+A Workbook session gets its target category/topic from either:
+- **Auto** — pulled from a currently escalated/weak category (the error log
+  suggests what to drill), or
+- **Freeform request** — the learner types "let's do some conjugation practice"
+  or picks a structure themselves.
 
-```sql
-lesson_log (
-  id,
-  topic_category text nullable,      -- set for macro/grammar lessons; matches
-                                      -- the frozen taxonomy enum (§8.1) when
-                                      -- applicable
-  topic_freeform text nullable,      -- set for micro/lexical lessons (e.g. "dejar")
-  dele_level_at_creation text,       -- snapshot of the learner's level when the
-                                      -- thread was opened — see §9.6
-  created_at
-)
+Plus the **connective-tissue links**: Lessons' existing "Want to practice this
+further?" stub and Writing's feedback screen both deep-link into a pre-seeded
+Workbook session on the relevant category (same mechanism reused, no new
+infra). Writing's link is added this phase.
 
-lesson_messages (
-  id,
-  lesson_id (FK -> lesson_log.id),
-  role enum('user','assistant'),
-  content text,
-  created_at
-)
-```
+### 10.4 Grading + error-log write-back
 
-Revisiting a past `lesson_log` entry reopens the **exact original thread** —
-messages are never regenerated. "Completed" for tally purposes = the entry
-exists in the log (opening a thread = viewing it; no separate completion
-state or pass/fail gating).
+- **Objective types (cloze, conjugation recall, gap-fill):** grade
+  **auto-match first** (exact/normalized string match — instant, no API cost);
+  fall back to an LLM check **only for near-misses** (accent-only differences,
+  defensible alternates) to avoid false negatives. Objective items are scored
+  boolean correct/incorrect; **no sophistication scoring** (that's Writing's
+  job).
+- **Sentence production:** LLM-graded for accuracy (free-form output);
+  receives accuracy observations, and may optionally receive lightweight
+  sophistication scoring since it resembles free writing.
+- **All exercise attempts write real `error_observations`** with
+  `source_tab = 'workbook'`, into the **same table** as Writing, contributing
+  to the same 14-day trend/escalation/avoidance math (§5, §8.3). These are
+  genuine observations, not synthetic/practice-only rows. This requires adding
+  a `source_tab` column to `error_observations` (migration per §8.5).
 
-### 9.6 Staying lean as the learner's level rises — no staleness machinery
+### 10.5 Anki ingest — read path only (this phase)
 
-The app does **not** attempt to detect or update stale lesson content as the
-learner's DELE level increases. There is no "regenerate for my current
-level" feature and no staleness flag. Instead:
+- **Flow (desktop as hub):** learner syncs AnkiMobile → AnkiWeb → desktop;
+  exports the full collection as `.colpkg` from **desktop**; uploads that file
+  to the app. A **plain-Python parser** (no LLM) opens the `.colpkg`
+  (SQLite-based) and extracts weak items by **FSRS signals** — low stability,
+  high lapse count, retention below the learner's 90% target.
+- **Output:** a list of weak cards/verbs that Workbook can use as an additional
+  targeting source alongside the error log.
+- **Read path only.** Card *generation*, TSV/`.apkg` export, and dedup against
+  the master word list are **Phase 5 (Flashcards)** — explicitly out of scope
+  here to keep Phase 4 focused. (Feasibility confirmed: AnkiMobile/desktop
+  `.colpkg` includes cards + statistics; FSRS runs natively on both.)
 
-- Each `lesson_log` entry is timestamped with `dele_level_at_creation`, so an
-  old A2-level `ser_estar` thread and a later B1-level `ser_estar` thread
-  coexist in the log as distinct entries, not as one entry needing an update.
-- If a topic needs revisiting at a higher level, the learner just opens a
-  **new** thread via the same freeform request UI (§9.2) — this requires zero
-  additional engineering, since new-thread creation already exists.
-- The resulting log doubles as a visible growth record (e.g. "ser_estar — A2
-  — March" next to "ser_estar — B1 — July"), which is a feature, not a gap.
+### 10.6 What Workbook must NOT do (this phase)
 
-### 9.7 The log/tally view
+- Must not build the Anki **write-back** path (Phase 5).
+- Must not build matching exercises.
+- Must not duplicate the History view's badges to browse weak categories.
+- Must not introduce auth, billing, or tiers (§11 is parked).
 
-A simple browsable list of past lesson threads, groupable/countable by
-category, showing `dele_level_at_creation` per entry so growth over time is
-visible at a glance. Optionally overlay lesson timestamps on the existing
-per-category accuracy trend chart (§5) so the learner can visually correlate
-lesson timing with subsequent accuracy movement.
+### 10.7 Definition of done for Phase 4
 
-### 9.8 Relationship to Workbook (Phase 4, not built yet)
+- All four exercise types generate correctly, calibrated to `dialect` +
+  `dele_level`, in the learner's worksheet-style format.
+- Session sourcing works both ways (auto from a flagged category; freeform
+  request). Writing's feedback screen deep-links into a seeded Workbook session.
+- Objective grading is auto-match-first with LLM near-miss fallback; sentence
+  production is LLM-graded.
+- Workbook attempts write `error_observations` with `source_tab='workbook'`;
+  a synthetic drill on a flagged category is shown to add to that category's
+  in-window counts (and, with enough correct answers over time, is the path by
+  which its escalation flag ages out).
+- `.colpkg` upload → Python parser returns a weak-item list by FSRS
+  stability/lapses; this list is usable as a Workbook targeting source.
+- Proxy token metering (§6.1) is live: every model call logs input/output
+  tokens to `usage_log`.
+- `source_tab` column migration on `error_observations` follows §8.5; all prior
+  Writing/Lessons data intact.
 
-Lessons builds **declarative** knowledge (understanding, via conversation);
-Workbook (Phase 4) builds **procedural** knowledge (production, under
-retrieval-practice conditions). Every lesson thread should offer an optional
-prompt — e.g. "Want to practice this further?" — that will deep-link to a
-pre-seeded Workbook session on the same topic once Workbook exists. This link
-is a **stub/TODO for Phase 4**, not built now; do not build any Workbook
-functionality in Phase 3.
+---
 
-### 9.9 Word Bank — no new work required
+## 11. Phase 6 (parked): Multi-tenancy & Monetization
 
-The global "+ Word" affordance (§8.4) already appears on every tab, including
-Lessons, by design. No lesson-specific auto-offer or integration is needed;
-this is a regression check (confirm it still works inside the Lessons view),
-not new feature work.
+**Not built now. Captured so the product future is not accidentally designed
+out.** The single thing built early to enable all of this is proxy token
+metering (§6.1) — everything below is deferred.
 
-### 9.10 What Lessons must NOT do
+### 11.1 The core sustainability problem
+The app currently runs on the owner's Anthropic key (Vercel env var). That is
+correct for single-user but unsustainable the moment a stranger uses it: a
+"super user" spends the owner's money with no ceiling. Three resolutions, each
+a known AI-wrapper pattern:
+1. **BYO-key** — each user supplies their own Anthropic key; they pay Anthropic
+   directly. Trivial to build, zero per-user cost to the owner, good
+   developer/portfolio story — but brutal consumer onboarding (few language
+   learners will create an Anthropic account). Caps the audience to technical
+   users.
+2. **Owner-pays + subscription** — owner eats API cost, covers it with a monthly
+   fee. Real consumer model, but now a margin business: needs usage caps +
+   tiers so a heavy user can't cost more than they pay.
+3. **Hybrid** — free tier BYO-key, paid tier owner-handled. Two auth paths.
 
-- Must not write to `error_observations` or otherwise affect the escalation
-  or avoidance flags. Those clear only via the trailing-window mechanism
-  (§8.3). A lesson is an intervention, not a data edit.
-- Must not build any staleness-detection or "regenerate at current level"
-  machinery (§9.6) — new threads are the mechanism for revisiting a topic.
-- Must not build any Workbook exercise functionality (§9.8 is a stub only).
-- Must not duplicate the History view's flagged-category display (§9.3).
+### 11.2 Why the existing architecture already supports this
+- **Model routing (§6) is the margin story.** High-volume tabs already run on
+  Haiku (pennies); only low-volume grading/lessons use Sonnet. A frontier-only
+  app couldn't survive a ~$10–20/mo price; this one can.
+- **Metering (§6.1) is the control surface.** Per-call token logging enables:
+  a running "usage this month" number per user, hard per-tier caps that degrade
+  gracefully ("limit reached, resets on the 1st, or upgrade"), and a real
+  cost-per-active-day figure to price against.
 
-### 9.11 Definition of done for Phase 3
+### 11.3 Pricing follows measured cost — not a guess
+Run the app personally for a month with metering on to get a real
+cost-per-active-day. Typical SaaS covers COGS ~5–10×; if a heavy user costs
+~$2–4/mo in tokens, a ~$12–20/mo price has healthy margin. Set price *after*
+data exists, not before.
 
-- Freeform request input opens a new lesson thread; accepts both macro
-  (grammar/category) and micro (lexical) requests; backend classifies and
-  populates `topic_category` or `topic_freeform` accordingly.
-- The model decides opening depth (short vs. explanation + examples + check)
-  without a user-facing depth selector.
-- The learner can reply within a thread to go deeper or pivot to a related
-  subtopic; this requires no UI beyond a normal chat input — verified with at
-  least one thread that includes a follow-up message.
-- Comprehension checks, when present, are recognition-based, not production.
-- Generated content respects `dialect` and `dele_level` parameters; each
-  thread stores `dele_level_at_creation`.
-- Full thread (all messages) is persisted in `lesson_messages`; revisiting a
-  `lesson_log` entry shows the original thread unchanged, not a regeneration.
-- Log/tally view lists past lesson threads, countable by category, showing
-  the level at which each was created.
-- A synthetic test confirms taking a lesson on an escalated category does not
-  clear the escalation flag — only the trailing window does.
-- The global Word Bank "+ Word" affordance is confirmed working inside the
-  Lessons tab (regression test, not new build).
-- Migration for the new `lesson_log` and `lesson_messages` tables follows
-  §8.5 (backed up, versioned, tested against a copy of real data).
+### 11.4 Onboarding / "how do I explain this"
+The four-tab error-log-spine concept is elegant but not self-evident to a
+stranger. A guided first-run and a one-screen "here's the loop" explainer are a
+genuine product-design + copywriting effort — deferred until the tabs all
+exist. Worth a dedicated session, not a footnote.
+
+### 11.5 Portfolio value regardless
+Even if never sold: "architected for multi-tenancy with per-user cost metering,
+here's the pricing model I'd use" is exactly the systems-thinking a
+Chief-of-Staff/operator role wants to see. This thinking pays off either way.
