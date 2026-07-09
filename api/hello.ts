@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
+import { logUsage } from '../src/shared/db/usage.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -24,6 +25,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       max_tokens: 200,
       messages: [{ role: 'user', content: testMessage }],
     });
+
+    await logUsage({
+      tab: 'wiring_test',
+      model: 'claude-haiku-4-5-20251001',
+      inputTokens: completion.usage.input_tokens,
+      outputTokens: completion.usage.output_tokens,
+    }).catch((err) => console.error('Usage logging error:', err));
 
     const reply = completion.content
       .filter((block): block is Anthropic.TextBlock => block.type === 'text')

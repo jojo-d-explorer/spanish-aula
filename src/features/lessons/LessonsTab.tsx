@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { SettingsResponse } from '../../shared/settings/types';
+import type { ErrorCategory } from '../../shared/grading/types';
 import type { LessonMessage } from '../../shared/lessons/types';
 import ThreadView from './ThreadView';
 import LessonLogView from './LessonLogView';
@@ -10,7 +11,11 @@ interface UnsavedThread {
   persistError: string;
 }
 
-function LessonsTab() {
+interface LessonsTabProps {
+  onPracticeCategory: (category: ErrorCategory) => void;
+}
+
+function LessonsTab({ onPracticeCategory }: LessonsTabProps) {
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
   const [settingsError, setSettingsError] = useState('');
   const [view, setView] = useState<'new' | 'thread' | 'log'>('new');
@@ -91,7 +96,9 @@ function LessonsTab() {
 
       {view === 'log' && <LessonLogView onOpenThread={handleOpenThread} />}
 
-      {view === 'thread' && activeLessonId && <ThreadView lessonId={activeLessonId} />}
+      {view === 'thread' && activeLessonId && (
+        <ThreadView lessonId={activeLessonId} onPracticeCategory={onPracticeCategory} />
+      )}
 
       {view === 'new' && (
         <>

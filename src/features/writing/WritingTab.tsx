@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { generateWritingPrompt, type WritingPrompt, type DeleLevel, DELE_LEVEL_OPTIONS } from '../../shared/prompts/writingPrompt';
-import type { GradingContract } from '../../shared/grading/types';
+import type { GradingContract, ErrorCategory } from '../../shared/grading/types';
 import type { SettingsResponse } from '../../shared/settings/types';
 import HistoryView from './history/HistoryView';
 
-function WritingTab() {
+interface WritingTabProps {
+  onPracticeCategory: (category: ErrorCategory) => void;
+}
+
+function WritingTab({ onPracticeCategory }: WritingTabProps) {
   const [view, setView] = useState<'write' | 'history'>('write');
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
   const [settingsError, setSettingsError] = useState('');
@@ -185,7 +189,10 @@ function WritingTab() {
               <ul>
                 {Object.entries(feedback.accuracy.category_summary).map(([category, summary]) => (
                   <li key={category}>
-                    {category}: {summary!.correct}/{summary!.obligatory_contexts}
+                    {category}: {summary!.correct}/{summary!.obligatory_contexts}{' '}
+                    <button onClick={() => onPracticeCategory(category as ErrorCategory)}>
+                      Practice in Workbook →
+                    </button>
                   </li>
                 ))}
               </ul>

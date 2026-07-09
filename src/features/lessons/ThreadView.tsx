@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import type { LessonLogEntry, LessonMessage } from '../../shared/lessons/types';
+import type { ErrorCategory } from '../../shared/grading/types';
 
 interface ThreadViewProps {
   lessonId: string;
+  onPracticeCategory: (category: ErrorCategory) => void;
 }
 
 function topicLabel(lesson: Pick<LessonLogEntry, 'topicCategory' | 'topicFreeform'>) {
   return lesson.topicCategory ?? lesson.topicFreeform ?? 'Lesson';
 }
 
-function ThreadView({ lessonId }: ThreadViewProps) {
+function ThreadView({ lessonId, onPracticeCategory }: ThreadViewProps) {
   const [lesson, setLesson] = useState<LessonLogEntry | null>(null);
   const [messages, setMessages] = useState<LessonMessage[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -92,9 +94,13 @@ function ThreadView({ lessonId }: ThreadViewProps) {
       </button>
       {replyStatus === 'error' && <p role="alert">{replyError}</p>}
 
-      <p className="lesson-workbook-stub">
-        Want to practice this further? Workbook exercises are coming in a future update.
-      </p>
+      {lesson.topicCategory ? (
+        <button onClick={() => onPracticeCategory(lesson.topicCategory!)}>
+          Want to practice this further? Open a Workbook session →
+        </button>
+      ) : (
+        <p className="lesson-workbook-stub">This lesson's topic isn't tied to a drillable category yet.</p>
+      )}
     </div>
   );
 }

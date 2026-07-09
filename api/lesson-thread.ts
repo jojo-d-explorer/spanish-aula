@@ -4,6 +4,7 @@ import { buildLessonSystemPrompt } from '../src/shared/lessons/rubric.js';
 import { appendLessonMessage, fetchLessonThread } from '../src/shared/db/lessons.js';
 import { getSettings } from '../src/shared/db/settings.js';
 import type { LessonMessage } from '../src/shared/lessons/types.js';
+import { logUsage } from '../src/shared/db/usage.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -76,6 +77,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         { role: 'user' as const, content },
       ],
     });
+
+    await logUsage({
+      tab: 'lesson_thread_reply',
+      model: 'claude-sonnet-5',
+      inputTokens: completion.usage.input_tokens,
+      outputTokens: completion.usage.output_tokens,
+    }).catch((err) => console.error('Usage logging error:', err));
 
     const textBlock = completion.content.find(
       (block): block is Anthropic.TextBlock => block.type === 'text',

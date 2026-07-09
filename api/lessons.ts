@@ -6,6 +6,7 @@ import { buildLessonSystemPrompt, buildLessonClassifierSystemPrompt } from '../s
 import { createLessonThread, fetchLessonLog } from '../src/shared/db/lessons.js';
 import { isDeleLevel, type DialectCode, type DeleLevel } from '../src/shared/prompts/writingPrompt.js';
 import type { LessonClassification, LessonMessage } from '../src/shared/lessons/types.js';
+import { logUsage } from '../src/shared/db/usage.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -77,6 +78,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       messages: [{ role: 'user', content: requestText }],
     });
 
+    await logUsage({
+      tab: 'lessons_classifier',
+      model: 'claude-sonnet-5',
+      inputTokens: classificationCompletion.usage.input_tokens,
+      outputTokens: classificationCompletion.usage.output_tokens,
+    }).catch((err) => console.error('Usage logging error:', err));
+
     const classifierToolUse = classificationCompletion.content.find(
       (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
     );
@@ -108,6 +116,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ],
       messages: [{ role: 'user', content: requestText }],
     });
+
+    await logUsage({
+      tab: 'lessons_reply',
+      model: 'claude-sonnet-5',
+      inputTokens: replyCompletion.usage.input_tokens,
+      outputTokens: replyCompletion.usage.output_tokens,
+    }).catch((err) => console.error('Usage logging error:', err));
 
     const replyTextBlock = replyCompletion.content.find(
       (block): block is Anthropic.TextBlock => block.type === 'text',
