@@ -1,30 +1,47 @@
-import type { ErrorCategory } from '../grading/types';
 import type { DialectCode, DeleLevel } from '../prompts/writingPrompt';
+import type { AnkiNoteType } from './ankiSchema';
 
 export const FLASHCARD_SOURCES = ['word_bank', 'anki_weak_item'] as const;
 export type FlashcardSource = (typeof FLASHCARD_SOURCES)[number];
 
-export const FLASHCARD_DEDUP_STATUSES = ['pending', 'duplicate', 'exported'] as const;
-export type FlashcardDedupStatus = (typeof FLASHCARD_DEDUP_STATUSES)[number];
+export const FLASHCARD_STATUSES = ['draft', 'confirmed', 'rejected'] as const;
+export type FlashcardStatus = (typeof FLASHCARD_STATUSES)[number];
 
-// Frontend-safe — imported by both FlashcardsTab.tsx and the api/flashcards*
-// handlers. Never import src/shared/db/* from here (excluded from the
-// browser bundle, tsconfig.app.json) — db/flashcards.ts imports FROM this
-// file instead, not the other way around.
+export const KNOWN_CARD_SOURCES = ['seed_import', 'generated'] as const;
+export type KnownCardSource = (typeof KNOWN_CARD_SOURCES)[number];
+
+// Frontend-safe — imported by both the Flashcards feature components and the
+// api/flashcards handler. Never import src/shared/db/* from here (excluded
+// from the browser bundle, tsconfig.app.json) — db/flashcards.ts imports
+// FROM this file instead, not the other way around.
 export interface FlashcardRecord {
   id: string;
+  status: FlashcardStatus;
+  noteType: AnkiNoteType | null; // null only when outOfScope
+  deck: string | null; // null only when outOfScope
   term: string;
-  translation: string;
-  exampleSentence: string;
-  category: ErrorCategory | null;
+  fields: Record<string, string> | null; // null only when outOfScope
+  tags: string[];
+  outOfScope: boolean;
+  outOfScopeReason: string | null;
   dialect: DialectCode;
   deleLevelAtCreation: DeleLevel;
   source: FlashcardSource;
   sourceWordBankId: string | null;
-  sourceNote: string | null;
-  dedupStatus: FlashcardDedupStatus;
+  sourceNote: string;
   createdAt: string;
+  confirmedAt: string | null;
   exportedAt: string | null;
+}
+
+export interface KnownCardRecord {
+  id: string;
+  term: string;
+  deck: string | null;
+  noteType: AnkiNoteType | null;
+  source: KnownCardSource;
+  flashcardId: string | null;
+  createdAt: string;
 }
 
 // One generation input item — either a Word Bank entry or an Anki weak item,
@@ -42,9 +59,32 @@ export interface FlashcardGenerateRequest {
 }
 
 export interface FlashcardGenerateResponse {
-  flashcards: FlashcardRecord[];
+  drafts: FlashcardRecord[]; // includes out_of_scope rows, flagged not silently dropped
+  alreadyKnown: string[]; // source terms skipped pre-generation — matched known_cards
 }
 
 export interface FlashcardListResponse {
   flashcards: FlashcardRecord[];
+}
+
+// Seeding known_cards reuses /api/anki-ingest's response shape directly —
+// the *unfiltered* items list (every card, not just weak ones).
+export interface FlashcardSeedItem {
+  noteText: string;
+  deckName: string;
+}
+
+export interface FlashcardSeedRequest {
+  items: FlashcardSeedItem[];
+}
+
+export interface FlashcardSeedResponse {
+  seededCount: number;
+  skippedCount: number; // already present in known_cards, normalized-match
+}
+
+export interface FlashcardUpdateRequest {
+  noteType?: AnkiNoteType;
+  deck?: string;
+  tags?: string[];
 }
