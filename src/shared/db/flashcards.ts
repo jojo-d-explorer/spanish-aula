@@ -1,9 +1,7 @@
 import { getSupabaseClient } from './client.js';
 import type { ErrorCategory } from '../grading/types';
 import type { DialectCode, DeleLevel } from '../prompts/writingPrompt';
-
-export type FlashcardSource = 'word_bank' | 'anki_weak_item';
-export type FlashcardDedupStatus = 'pending' | 'duplicate' | 'exported';
+import type { FlashcardRecord, FlashcardSource, FlashcardDedupStatus } from '../flashcards/types';
 
 export interface FlashcardInput {
   term: string;
@@ -18,20 +16,36 @@ export interface FlashcardInput {
   dedupStatus: FlashcardDedupStatus;
 }
 
-export interface FlashcardRecord {
-  id: string;
-  term: string;
-  translation: string;
-  exampleSentence: string;
-  category: ErrorCategory | null;
-  dialect: DialectCode;
-  deleLevelAtCreation: DeleLevel;
-  source: FlashcardSource;
-  sourceWordBankId: string | null;
-  sourceNote: string | null;
-  dedupStatus: FlashcardDedupStatus;
-  createdAt: string;
-  exportedAt: string | null;
+function toRecord(row: {
+  id: unknown;
+  term: unknown;
+  translation: unknown;
+  example_sentence: unknown;
+  category: unknown;
+  dialect: unknown;
+  dele_level_at_creation: unknown;
+  source: unknown;
+  source_word_bank_id: unknown;
+  source_note: unknown;
+  dedup_status: unknown;
+  created_at: unknown;
+  exported_at: unknown;
+}): FlashcardRecord {
+  return {
+    id: row.id as string,
+    term: row.term as string,
+    translation: row.translation as string,
+    exampleSentence: row.example_sentence as string,
+    category: row.category as ErrorCategory | null,
+    dialect: row.dialect as DialectCode,
+    deleLevelAtCreation: row.dele_level_at_creation as DeleLevel,
+    source: row.source as FlashcardSource,
+    sourceWordBankId: row.source_word_bank_id as string | null,
+    sourceNote: row.source_note as string | null,
+    dedupStatus: row.dedup_status as FlashcardDedupStatus,
+    createdAt: row.created_at as string,
+    exportedAt: row.exported_at as string | null,
+  };
 }
 
 // Fetched once per generation call and compared in memory via
@@ -67,44 +81,14 @@ export async function persistFlashcards(inputs: FlashcardInput[]): Promise<Flash
     .select();
 
   if (error) throw error;
-
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    term: row.term as string,
-    translation: row.translation as string,
-    exampleSentence: row.example_sentence as string,
-    category: row.category as ErrorCategory | null,
-    dialect: row.dialect as DialectCode,
-    deleLevelAtCreation: row.dele_level_at_creation as DeleLevel,
-    source: row.source as FlashcardSource,
-    sourceWordBankId: row.source_word_bank_id as string | null,
-    sourceNote: row.source_note as string | null,
-    dedupStatus: row.dedup_status as FlashcardDedupStatus,
-    createdAt: row.created_at as string,
-    exportedAt: row.exported_at as string | null,
-  }));
+  return (data ?? []).map(toRecord);
 }
 
 export async function listFlashcards(): Promise<FlashcardRecord[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.from('flashcards').select().order('created_at', { ascending: false });
   if (error) throw error;
-
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    term: row.term as string,
-    translation: row.translation as string,
-    exampleSentence: row.example_sentence as string,
-    category: row.category as ErrorCategory | null,
-    dialect: row.dialect as DialectCode,
-    deleLevelAtCreation: row.dele_level_at_creation as DeleLevel,
-    source: row.source as FlashcardSource,
-    sourceWordBankId: row.source_word_bank_id as string | null,
-    sourceNote: row.source_note as string | null,
-    dedupStatus: row.dedup_status as FlashcardDedupStatus,
-    createdAt: row.created_at as string,
-    exportedAt: row.exported_at as string | null,
-  }));
+  return (data ?? []).map(toRecord);
 }
 
 // Called at export time (PRD §14.5) — marks exported cards, and their
