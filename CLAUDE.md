@@ -160,6 +160,15 @@ auth/billing (Phase 6) yet.
 
 - TypeScript. Small, reviewable commits. Env vars for secrets; never commit
   `.env`. Keep the weekly learning-log section in the README.
+- **`/api` is capped at 12 serverless functions (Vercel Hobby plan).** Check
+  `ls api/*.ts api/*.py | wc -l` before adding a new endpoint file. When
+  near/at 12, consolidate a related pair into one file dispatching on
+  `req.method` + a query param (precedent: `api/word-bank.ts` GET/POST,
+  `api/flashcards.ts` GET/GET+`?export`/POST) rather than adding a new file.
+  Decision (Phase 5): keep consolidating opportunistically as this comes up,
+  not a big upfront restructure — revisit only if Phase 6 needs a burst of
+  new endpoints at once (options then: resource-oriented file consolidation,
+  a Vercel catch-all `api/[...slug].ts` router, or upgrading to Pro).
 
 ## Mobile UI conventions (standing rules for all tabs)
 
