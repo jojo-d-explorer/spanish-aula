@@ -31,6 +31,10 @@ A second, sibling capture mechanism — the **Word Bank** — lets any word or
 phrase be captured from anywhere in the app, independent of the error log, as
 raw material for the Flashcard tab.
 
+A third, lightweight signal — **known structures** (§2, §12) — constrains
+what grammar generated content is allowed to use incidentally, so exercises
+and prompts never spring an untaught structure on the learner.
+
 ---
 
 ## 2. Non-negotiable design principles
@@ -64,6 +68,10 @@ raw material for the Flashcard tab.
   tokens-out per call from day one (§6.1). This costs nothing while single-user
   but is the load-bearing foundation for any future pricing, usage caps, or
   "know your own cost" feature (§11). Auth/billing/tiers are **not** built yet.
+- **DELE level is a coarse proxy, not a syllabus.** `dele_level` alone does
+  not guarantee a structure is one *this* learner has actually been taught. All
+  generated content must additionally respect `known_structures` (§12) — see
+  the three-tier rule there for exactly how strict this is per content type.
 
 ---
 
@@ -71,6 +79,9 @@ raw material for the Flashcard tab.
 
 Prompt-generated **or** free-journal entries go through one grading contract
 (§4) and feed the same error log. See CLAUDE.md for the full shipped flow.
+Prompt generation respects `known_structures` (§12) **strictly, with no
+exception** — unlike Workbook's cloze narratives (§12.3), a Writing prompt has
+no narrative-necessity carve-out.
 
 ---
 
@@ -124,6 +135,13 @@ comparability. Applies identically to prompted and free-journal entries, and
 `verb_conjugation_irregular` · `stem_change` · `word_order` ·
 `lexical_choice` · `false_friend_portuguese` · `accent_orthography` ·
 `register_formality` · `other`
+
+**Note:** the error taxonomy (what gets tagged when a mistake happens) and
+`known_structures` (what's fair game to use at all, §12) are related but
+distinct axes — a taxonomy category can exist without the structure being in
+`known_structures` yet (e.g. `subjunctive_trigger` is a taxonomy category the
+learner has occasionally attempted, but subjunctive is not currently in
+`known_structures` — see §12.1).
 
 ---
 
@@ -235,7 +253,8 @@ stamped per thread (growth record; no staleness machinery). Lessons never
 writes to `error_observations`. Shipped Spanish-first, with no mixed-language
 weighting — that rule (§2) applies going forward, starting with Workbook, and
 is not a retrofit item for Lessons. Full detail retained in repo history /
-CLAUDE.md.
+CLAUDE.md. **Fully exempt from `known_structures`** — any topic can be
+requested regardless of what's "known" (§12.4).
 
 ---
 
@@ -254,11 +273,8 @@ Grounded in the learner's real teacher worksheets. Four types, each mapped to
 a research principle; **matching is intentionally excluded** (weakest evidence;
 recognition work belongs to Flashcards).
 
-1. **Contextual cloze (connected narrative).** A coherent multi-sentence
-   passage with blanks, cue verb/word in parentheses (e.g. "Diego (dormir)
-   ___ hasta muy tarde"). Maps to cloze deletion + contextual retrieval.
-   **Primary/centerpiece type** — context forces meaning-tracking, not
-   mechanical conjugation.
+1. **Contextual cloze (connected narrative)** — centerpiece type. **The
+   only exercise type eligible for the narrative-necessity exception (§12.3).**
 2. **Conjugation recall (isolated cued sentences).** One sentence, target verb
    + person specified (e.g. "Nosotros ___ a Managua. (VOLAR)"). Maps to
    targeted retrieval practice. Good for a narrow weak-verb drill.
@@ -341,6 +357,12 @@ infra). Writing's link is added this phase.
   tokens to `usage_log`.
 - `source_tab` column migration on `error_observations` follows §8.5; all prior
   Writing/Lessons data intact.
+- **`known_structures` three-tier rule (§12) verified**: (a) a synthetic
+  conjugation-recall/gap-fill/sentence-production request confirms no structure
+  outside the list appears at all, except the deliberate target; (b) a
+  synthetic contextual-cloze request confirms an untaught-but-essential
+  structure, if used, is explicitly flagged inline, not silent; (c) a synthetic
+  Writing prompt confirms strict avoidance with **no** narrative exception.
 
 ---
 
@@ -390,3 +412,67 @@ exist. Worth a dedicated session, not a footnote.
 Even if never sold: "architected for multi-tenancy with per-user cost metering,
 here's the pricing model I'd use" is exactly the systems-thinking a
 Chief-of-Staff/operator role wants to see. This thinking pays off either way.
+
+---
+
+## 12. Known-structures constraint — cross-tab, three-tier rule
+
+**Problem this solves:** `dele_level` is a coarse proxy for what a *typical*
+learner at that level knows — it doesn't track what *this* learner has
+actually been taught. A structure can be nominally level-appropriate while
+still being new to him, and generated content can spring it on him unannounced.
+
+### 12.1 Current known_structures (seed value, learner-editable)
+
+Present tense — regular (AR/ER/IR) **and** irregular yo-forms (-go verbs)
+**and** stem-changing (o→ue, e→ie, e→i) · preterite indefinido · present
+perfect (haber + participle) · direct object pronouns · indirect object
+pronouns · ser/estar · **ir a + infinitive** (periphrastic near future —
+**not** the synthetic future, e.g. `hablaré` counts as untaught) ·
+gustar-family verbs · demonstratives.
+
+This is deliberately a **narrower, more conservative baseline** than the
+learner's full exposure history (which also includes imperfect, conditional,
+emerging subjunctive, stem-changing beyond present tense, impersonal se,
+etc.) — those are things he's touched but isn't ready to have sprung on him in
+a worksheet without warning.
+
+### 12.2 Schema
+
+```sql
+learner_profile (
+  id, dialect text default 'mx', dele_level text,
+  known_structures text,   -- free text, learner-maintained, unstructured
+  updated_at
+)
+```
+
+**UI:** a simple editable text area in Settings, alongside dialect and level.
+
+### 12.3 The three-tier rule
+
+1. **Within `known_structures`** → free use anywhere, no flagging needed.
+2. **The deliberate target** of a Workbook session (including a
+   just-escalated or explicitly-requested category) or a Lesson topic →
+   exempt. That's the point of practicing or teaching it.
+3. **Narratively necessary but untaught** → allowed **only** in Workbook's
+   **contextual cloze narrative** type, and **only if explicitly called out
+   inline** — never silently blended in. This exception does not apply
+   anywhere else: isolated cued sentences, conjugation recall, gap-fill,
+   sentence-production questions, and Writing prompts must avoid untaught
+   structures entirely, with no narrative-necessity carve-out (§3).
+4. **Everything else untaught and non-essential** → avoided; the generator
+   rewrites around it.
+
+### 12.4 Lessons are fully exempt
+
+The Lessons tab (§9) ignores `known_structures` entirely. That's how the list
+is meant to grow — learn something in a Lesson, then (§12.5) add it once solid.
+
+### 12.5 Growth path (documented now, not built this phase)
+
+Intended mechanism: periodic worksheet upload, with a short learner-typed tag
+alongside it ("this covers imperfect + preterite irregulars") appended to
+`known_structures`. Deliberately manual/asserted by the learner, not
+auto-extracted by an LLM. Not built in Phase 4 — the manual Settings text-area
+edit (§12.2) is the complete Phase 4 mechanism.

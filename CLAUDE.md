@@ -49,6 +49,24 @@ path, or any auth/billing (Phase 6) yet.
 - **`dialect` and `dele_level` are parameters**, injected into prompt templates.
   Default `dialect = "mx"`. Never hardcode dialect/level content. Workbook
   exercises are calibrated to these exactly like Writing/Lessons.
+- **`known_structures` three-tier rule (PRD §12) — READ CAREFULLY, this is
+  not a simple allow/deny list:**
+  1. Anything **in** `known_structures` → free use everywhere.
+  2. The **deliberate target** of a Workbook session or Lesson topic → exempt.
+  3. Narratively-necessary-but-untaught → allowed **ONLY** in Workbook's
+     **contextual cloze narrative** type, and **only if explicitly flagged
+     inline** (not silent). No other content type gets this exception —
+     Writing prompts must avoid untaught structures entirely, zero exception.
+  4. Everything else untaught/non-essential → avoid; rewrite around it.
+  - **Lessons is fully exempt** from this whole rule (§12.4).
+  - **Current seed value**: present tense (regular + irregular yo-forms/-go
+    verbs + stem-changing o→ue/e→ie/e→i) · preterite indefinido · present
+    perfect (haber + participle) · direct object pronouns · indirect object
+    pronouns · ser/estar · **ir a + infinitive ONLY** (not synthetic future) ·
+    gustar-family · demonstratives. Deliberately narrower than full exposure
+    history — do not "helpfully" expand it from context or memory.
+  - **Growth path (NOT built this phase):** worksheet-upload-linked tagging
+    is a documented future enhancement (PRD §12.5).
 - **Explanatory content is mixed-language weighted by `dele_level`, going
   forward from Phase 4** (new Workbook rationale text): English for core rule
   + English/Portuguese contrastive notes; Spanish for examples, exercises,
@@ -145,4 +163,9 @@ path, or any auth/billing (Phase 6) yet.
     `usage_log`.
   - Migrations (`source_tab` column, `usage_log` table) follow the safety rule;
     all prior data intact.
+  - **Three-tier `known_structures` rule verified with three separate
+    synthetic tests**: (a) non-cloze Workbook type never uses an untaught
+    structure outside the deliberate target; (b) cloze narrative, if it uses an
+    untaught-but-essential structure, flags it inline — never silently; (c) a
+    Writing prompt strictly avoids untaught structures with zero exception.
 - **Phase 5 / Phase 6:** not started / parked (PRD §11).
