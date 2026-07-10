@@ -51,7 +51,11 @@ auth/billing (Phase 6) yet.
   Default `dialect = "mx"`. Never hardcode dialect/level content. Workbook
   exercises are calibrated to these exactly like Writing/Lessons.
 - **`known_structures` three-tier rule (PRD §12) — READ CAREFULLY, this is
-  not a simple allow/deny list:**
+  not a simple allow/deny list. STATUS: specified here and in the PRD, but
+  NOT YET IMPLEMENTED — no `settings.known_structures` column, no Settings
+  UI to edit it, and no prompt injection into Workbook's (or Flashcards')
+  generation calls exist yet. Do not assume Workbook already honors this
+  just because it's documented as a hard rule; verify before relying on it.**
   1. Anything **in** `known_structures` → free use everywhere.
   2. The **deliberate target** of a Workbook session or Lesson topic → exempt.
   3. Narratively-necessary-but-untaught → allowed **ONLY** in Workbook's
@@ -173,15 +177,23 @@ auth/billing (Phase 6) yet.
 - **v1 / Phase 2 / Phase 3 / Phase 4:** shipped (see repo history).
 - **Phase 3 open follow-up:** add `react-markdown` so `**bold**`/`##` render in
   lesson bubbles; live-verify the `dele_level_at_creation` pinning invariant.
-- **Phase 4 open follow-up (carried forward, not a Phase 5 blocker):**
-  **three-tier `known_structures` rule verification with three separate
-  synthetic tests** — (a) non-cloze Workbook type never uses an untaught
-  structure outside the deliberate target; (b) cloze narrative, if it uses an
-  untaught-but-essential structure, flags it inline — never silently; (c) a
-  Writing prompt strictly avoids untaught structures with zero exception.
-  Everything else in Phase 4 (exercise generation, session sourcing,
-  objective/sentence-production grading, `source_tab` write-back, Anki
-  read-path ingest, token metering, migrations) is built and shipped.
+- **Phase 4 open follow-up (carried forward, not a Phase 5 blocker):** the
+  **`known_structures` three-tier rule (§12) is unimplemented, not just
+  unverified** — no settings column, no Settings UI, no prompt injection
+  into Workbook's generation call exist yet (confirmed by grep during Phase
+  5 planning; corrected from an earlier, inaccurate "just needs
+  verification" framing). Building it is real, separate scope: a
+  `settings.known_structures` column + migration, a Settings UI surface
+  (none currently exists — only WritingTab's inline level `<select>`), the
+  actual tiered prompt logic in `buildWorkbookGenerationSystemPrompt`, and
+  the three synthetic verification tests originally scoped for Phase 4's DoD
+  — (a) non-cloze Workbook type never uses an untaught structure outside the
+  deliberate target; (b) cloze narrative, if it uses an untaught-but-
+  essential structure, flags it inline, never silently; (c) a Writing prompt
+  strictly avoids untaught structures with zero exception. Everything else
+  in Phase 4 (exercise generation, session sourcing, objective/sentence-
+  production grading, `source_tab` write-back, Anki read-path ingest, token
+  metering, migrations) is built and shipped.
 - **Phase 5 (current):**
   - Card generation from two sources — Word Bank entries and Anki weak items
     (via `api/anki-ingest.py`'s existing FSRS output) — produces

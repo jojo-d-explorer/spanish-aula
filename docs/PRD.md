@@ -357,12 +357,16 @@ infra). Writing's link is added this phase.
   tokens to `usage_log`.
 - `source_tab` column migration on `error_observations` follows §8.5; all prior
   Writing/Lessons data intact.
-- **`known_structures` three-tier rule (§12) verified**: (a) a synthetic
-  conjugation-recall/gap-fill/sentence-production request confirms no structure
-  outside the list appears at all, except the deliberate target; (b) a
-  synthetic contextual-cloze request confirms an untaught-but-essential
-  structure, if used, is explicitly flagged inline, not silent; (c) a synthetic
-  Writing prompt confirms strict avoidance with **no** narrative exception.
+- **`known_structures` three-tier rule (§12): NOT MET.** Confirmed
+  unimplemented during Phase 5 planning (no schema, no Settings UI, no
+  prompt injection) — carried forward as open Phase 4 follow-up scope, not
+  a completed DoD item. The three verification tests below describe what
+  "done" looks like once it's built: (a) a synthetic conjugation-recall/
+  gap-fill/sentence-production request confirms no structure outside the
+  list appears at all, except the deliberate target; (b) a synthetic
+  contextual-cloze request confirms an untaught-but-essential structure, if
+  used, is explicitly flagged inline, not silent; (c) a synthetic Writing
+  prompt confirms strict avoidance with **no** narrative exception.
 
 ---
 
@@ -416,6 +420,18 @@ Chief-of-Staff/operator role wants to see. This thinking pays off either way.
 ---
 
 ## 12. Known-structures constraint — cross-tab, three-tier rule
+
+**Implementation status: NOT BUILT.** This section is fully specified but,
+as of Phase 5 planning, confirmed unimplemented — no `known_structures`
+column exists on any table (the actual settings table is `settings`, not the
+`learner_profile` name used in the draft schema below — §12.2 was never
+created as written), no Settings UI exists to edit it, and no generation
+prompt (Workbook's or Flashcards', §14) injects it. Do not assume Workbook
+or Flashcards honor this rule just because it's documented as a Hard Rule in
+CLAUDE.md — they don't yet. Building this is separate, real scope: schema +
+migration, a Settings UI surface (none currently exists), the tiered prompt
+logic itself, and the three synthetic verification tests originally scoped
+for Phase 4's Definition of Done (§10.7).
 
 **Problem this solves:** `dele_level` is a coarse proxy for what a *typical*
 learner at that level knows — it doesn't track what *this* learner has
@@ -566,9 +582,14 @@ not build a competing in-app spaced-repetition study mode.
 One Haiku call per batch (model routing, Hard Rules), forced tool call
 producing `{ term, translation, example_sentence, category? }` per input
 item, calibrated to `dialect` + `dele_level` like every other generation
-path. Example-sentence generation follows the same `known_structures`
-three-tier rule (§12) as Workbook's generated content, since it's the same
-kind of LLM-generated free text the rule already governs.
+path. **Does not apply `known_structures` (§12)** — confirmed during Phase 5
+planning that the rule isn't implemented anywhere yet (not even in
+Workbook's own generation prompt, despite being a documented Hard Rule), so
+Flashcards doesn't newly claim compliance with something that doesn't exist.
+Example sentences are calibrated to level but not constrained to the taught-
+grammar allowlist. Once `known_structures` is actually built (§12's status
+note), Flashcards' generation prompt should be threaded in alongside
+Workbook's at that time.
 
 ### 14.4 Dedup
 
