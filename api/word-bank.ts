@@ -1,11 +1,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { persistWordBankEntry } from '../src/shared/db/wordBank.js';
+import { persistWordBankEntry, listWordBankEntries } from '../src/shared/db/wordBank.js';
 import { requireAccess } from '../src/shared/auth/accessGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireAccess(req, res)) return;
+
+  if (req.method === 'GET') {
+    try {
+      const entries = await listWordBankEntries();
+      res.status(200).json({ entries });
+    } catch (err) {
+      console.error('Word Bank list error:', err);
+      res.status(500).json({ error: 'Failed to load Word Bank entries. Check server logs.' });
+    }
+    return;
+  }
+
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed. Use POST.' });
+    res.status(405).json({ error: 'Method not allowed. Use GET or POST.' });
     return;
   }
 
