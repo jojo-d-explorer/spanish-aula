@@ -106,6 +106,15 @@ auth/billing (Phase 6) yet.
   **separate, app-side TSV export** the learner imports into Anki manually;
   it does not touch the uploaded `.colpkg` file or write Anki's SQLite
   format directly (PRD §10.5, §14).
+- **Before implementing any part of Flashcards generation, tagging, or
+  export, read `docs/ANKI_SCHEMA.md`.** It's the contract between Aula and
+  the owner's real Anki collection — deck structure (11 subdecks, including
+  a real duplicate "06" numbering quirk, don't "fix" it), the two note types'
+  exact field order, tagging conventions, the dedup approach (seed from a
+  real Anki export, not the Google Doc master list), and the
+  generate→review→export flow. Written because an earlier, ad hoc attempt at
+  card generation had no knowledge of any of this and produced cards that
+  didn't fit the real deck at all.
 - **Flashcards (Phase 5) generates from two sources**: Word Bank entries and
   Anki weak items (reusing `api/anki-ingest.py`'s existing FSRS output as an
   input, not rebuilding weak-item detection). Dedup is by normalized term
