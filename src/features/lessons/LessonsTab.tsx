@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { SettingsResponse } from '../../shared/settings/types';
 import type { ErrorCategory } from '../../shared/grading/types';
 import type { LessonMessage } from '../../shared/lessons/types';
+import { autoGrowTextarea } from '../../shared/ui/autoGrow';
 import ThreadView from './ThreadView';
 import LessonLogView from './LessonLogView';
 import './Lessons.css';
@@ -109,8 +110,9 @@ function LessonsTab({ onPracticeCategory }: LessonsTabProps) {
           <textarea
             value={requestText}
             onChange={(e) => setRequestText(e.target.value)}
+            onInput={(e) => autoGrowTextarea(e.currentTarget)}
             rows={3}
-            style={{ width: '100%' }}
+            style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
             placeholder="p. ej. Explícame cuándo usar el subjuntivo, o: no entiendo bien 'dejar'"
           />
           <button onClick={handleSubmit} disabled={!settings || status === 'submitting' || !requestText.trim()}>

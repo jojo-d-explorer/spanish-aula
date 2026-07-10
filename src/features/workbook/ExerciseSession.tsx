@@ -5,6 +5,7 @@ import type {
   ObjectiveAnswer,
   SentenceProductionAnswer,
 } from '../../shared/workbook/types';
+import { autoGrowTextarea } from '../../shared/ui/autoGrow';
 
 interface ExerciseSessionProps {
   session: WorkbookSession;
@@ -121,8 +122,9 @@ function ExerciseSession({ session, onGraded }: ExerciseSessionProps) {
               <textarea
                 value={sentenceAnswers[item.id] ?? ''}
                 onChange={(e) => setSentenceAnswers((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                onInput={(e) => autoGrowTextarea(e.currentTarget)}
                 rows={2}
-                style={{ width: '100%' }}
+                style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
               />
             </>
           )}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { SettingsResponse } from '../../shared/settings/types';
 import type { ErrorCategory } from '../../shared/grading/types';
 import type { WorkbookSession, WorkbookGradeResponse } from '../../shared/workbook/types';
+import { autoGrowTextarea } from '../../shared/ui/autoGrow';
 import ExerciseSession from './ExerciseSession';
 import ResultsView from './ResultsView';
 import AnkiUpload from './AnkiUpload';
@@ -124,8 +125,9 @@ function WorkbookTab({ seed, onSeedConsumed }: WorkbookTabProps) {
           <textarea
             value={requestText}
             onChange={(e) => setRequestText(e.target.value)}
+            onInput={(e) => autoGrowTextarea(e.currentTarget)}
             rows={3}
-            style={{ width: '100%' }}
+            style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
             placeholder="p. ej. Quiero practicar el pretérito, o: ayúdame con ser y estar"
           />
           <button

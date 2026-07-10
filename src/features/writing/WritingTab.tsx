@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { generateWritingPrompt, type WritingPrompt, type DeleLevel, DELE_LEVEL_OPTIONS } from '../../shared/prompts/writingPrompt';
 import type { GradingContract, ErrorCategory } from '../../shared/grading/types';
 import type { SettingsResponse } from '../../shared/settings/types';
+import { autoGrowTextarea } from '../../shared/ui/autoGrow';
 import HistoryView from './history/HistoryView';
 
 interface WritingTabProps {
@@ -156,8 +157,9 @@ function WritingTab({ onPracticeCategory }: WritingTabProps) {
               <textarea
                 value={entryText}
                 onChange={(e) => setEntryText(e.target.value)}
+                onInput={(e) => autoGrowTextarea(e.currentTarget)}
                 rows={6}
-                style={{ width: '100%' }}
+                style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
                 placeholder="Escribe tu respuesta aquí..."
               />
               <button onClick={handleSubmit} disabled={status === 'grading' || !entryText.trim()}>

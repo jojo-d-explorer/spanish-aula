@@ -8,3 +8,10 @@ createRoot(document.getElementById('root')!).render(
     <AccessGate />
   </StrictMode>,
 )
+
+// PWA-lite: installability + standalone display only, no offline caching.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}

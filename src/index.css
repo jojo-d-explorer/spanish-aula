@@ -109,3 +109,24 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Mobile UI conventions (CLAUDE.md) — app-wide base, every tab inherits. */
+input,
+textarea,
+select {
+  font-size: 16px;
+  font-family: inherit;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+select {
+  min-height: 44px;
+  min-width: 44px;
+}

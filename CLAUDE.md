@@ -140,6 +140,17 @@ path, or any auth/billing (Phase 6) yet.
 - TypeScript. Small, reviewable commits. Env vars for secrets; never commit
   `.env`. Keep the weekly learning-log section in the README.
 
+## Mobile UI conventions (standing rules for all tabs)
+
+- Inputs/textareas: font-size >= 16px always (prevents iOS zoom-on-focus).
+  Never suppress zoom via viewport meta tag instead.
+- Touch targets: minimum 44x44pt hit area on every tappable element.
+- Fixed-position elements must use safe-area-inset env() variables.
+- No hover-only affordances — every interaction needs a tap-accessible path.
+- Free-response text inputs auto-grow with content, no fixed-height scroll box.
+- New tabs (Workbook, Flashcards) must follow these from the start, not
+  retrofit them later.
+
 ## Definitions of done
 
 - **v1 / Phase 2 / Phase 3:** shipped (see repo history).

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { LessonLogEntry, LessonMessage } from '../../shared/lessons/types';
 import type { ErrorCategory } from '../../shared/grading/types';
+import { autoGrowTextarea } from '../../shared/ui/autoGrow';
 
 interface ThreadViewProps {
   lessonId: string;
@@ -85,8 +86,9 @@ function ThreadView({ lessonId, onPracticeCategory }: ThreadViewProps) {
       <textarea
         value={replyText}
         onChange={(e) => setReplyText(e.target.value)}
+        onInput={(e) => autoGrowTextarea(e.currentTarget)}
         rows={2}
-        style={{ width: '100%' }}
+        style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
         placeholder="Responde o haz otra pregunta…"
       />
       <button onClick={handleReply} disabled={replyStatus === 'sending' || !replyText.trim()}>
