@@ -34,7 +34,7 @@ function FlashcardBrowse({ refreshKey }: FlashcardBrowseProps) {
     setExportStatus('exporting');
     setExportError('');
     try {
-      const res = await fetch('/api/flashcards-export');
+      const res = await fetch('/api/flashcards?export=1');
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? 'Failed to export flashcards');

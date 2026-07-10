@@ -107,7 +107,7 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
     setGenStatus('generating');
     setGenErrorMessage('');
     try {
-      const res = await fetch('/api/flashcards-generate', {
+      const res = await fetch('/api/flashcards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source, items, dialect, deleLevel }),
