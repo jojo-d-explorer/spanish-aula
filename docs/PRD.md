@@ -199,8 +199,8 @@ usage_log (
 | 1 | **Writing tab** — prompt gen + free journaling + dual-axis grading + trends | Done |
 | 2 | Error-log spine hardened; taxonomy trends; **Word Bank** | Done |
 | 3 | **Lessons tab** — conversational, mixed-language, seedable from error log | Done |
-| 4 | **Workbook tab** — exercises targeting weak categories; **Anki ingest (read path)**; proxy token metering | **Next** |
-| 5 | Flashcards tab — card generation in note-type schema + dedup (Anki **write** path); weak-item detection; **entry regrade for incomplete gradings (§13)** | Not started |
+| 4 | **Workbook tab** — exercises targeting weak categories; **Anki ingest (read path)**; proxy token metering | Done |
+| 5 | Flashcards tab — card generation + dedup + TSV export (§14); entry regrade for incomplete gradings (§13, deferred within this phase) | **Current build** |
 | 6 | Multi-tenancy & monetization — auth, per-user metering surfaced, tiers/caps, onboarding | Parked — see §11 |
 
 ---
@@ -258,7 +258,7 @@ requested regardless of what's "known" (§12.4).
 
 ---
 
-## 10. Phase 4 Spec: Workbook Tab + Anki Ingest (read path)
+## 10. Phase 4 Spec (shipped): Workbook Tab + Anki Ingest (read path)
 
 ### 10.1 Purpose
 
@@ -536,3 +536,97 @@ minimal — no full history/versioning table (§2's "lean and adaptable").
 
 **Migration safety**: any new column follows §8.5 — versioned migration
 file, backup first, same as every prior phase's schema change.
+
+---
+
+## 14. Phase 5 Spec: Flashcards Tab (card generation + dedup + TSV export)
+
+### 14.1 Purpose
+
+Recognition-focused review, complementing Workbook's production-focused
+drilling (§10.2: "recognition work belongs to Flashcards"). Generates
+Anki-importable cards from two sources — Word Bank captures and Anki weak
+items — dedups them against the existing card set, and exports as TSV for
+the learner to import into Anki manually. **Anki remains the review surface**
+(§10.5's "desktop as hub" framing) — this tab generates and curates, it does
+not build a competing in-app spaced-repetition study mode.
+
+### 14.2 Sources
+
+- **Word Bank** (§8.4) — every captured term is eligible. `word_bank` is the
+  "master word list" §10.5/§8.4 refer to; its `dedup_status` column
+  (currently always `'pending'` since Phase 2) is what this phase activates.
+- **Anki weak items** — reuses `api/anki-ingest.py`'s existing FSRS-based
+  weak-item output (lapses ≥ 4 OR retrievability < 0.85) as an input source.
+  No new weak-item detection logic; this phase only adds it as a second
+  generation source alongside Word Bank.
+
+### 14.3 Generation
+
+One Haiku call per batch (model routing, Hard Rules), forced tool call
+producing `{ term, translation, example_sentence, category? }` per input
+item, calibrated to `dialect` + `dele_level` like every other generation
+path. Example-sentence generation follows the same `known_structures`
+three-tier rule (§12) as Workbook's generated content, since it's the same
+kind of LLM-generated free text the rule already governs.
+
+### 14.4 Dedup
+
+Before persisting a generated candidate, its term is normalized
+(`normalizeForMatch`, `src/shared/workbook/matching.ts` — reused, not
+reimplemented) and compared against existing `flashcards.term` values. A
+match is stored anyway with `dedup_status = 'duplicate'` (visible in the
+browse view, so the learner can see what was skipped and why) rather than
+silently dropped, and is excluded from export.
+
+### 14.5 Export
+
+TSV only this phase — no `.apkg` binary (would require hand-rolling Anki's
+SQLite collection/notetype format, or a new dependency; out of scope for the
+"lean and adaptable" principle, §2). Three tab-separated columns
+(`term`, `translation`, `example_sentence`), no header row, one line per
+`dedup_status = 'pending'` card. Export marks those cards — and their source
+`word_bank` row, where traceable — `dedup_status = 'exported'`.
+
+### 14.6 Explicit non-goals this phase
+
+- **No in-app flashcard review/study UI.** Anki is the review surface.
+- **Flashcard review never writes to `error_observations`.** That table is
+  for genuine graded production attempts (§10.4); a flip-card
+  self-assessment isn't a graded obligatory-context attempt and mixing it in
+  would pollute the avoidance-proofing trend math the same way an unguarded
+  duplicate Writing entry would (§13).
+- **Entry regrade (§13) stays deferred** — it needs its own per-entry
+  History browse view first (History currently only shows aggregated trend
+  cards), which is orthogonal scope to Flashcards.
+- **No real `.apkg` write-back to the learner's Anki collection.** The
+  Phase 4 read path (`api/anki-ingest.py`) stays read-only; TSV export is a
+  separate, one-way, manually-imported artifact.
+
+### 14.7 Schema
+
+```sql
+flashcards (
+  id, term, translation, example_sentence,
+  category text nullable,        -- best-effort LLM tag, ErrorCategory enum — NOT fed into error_observations
+  dialect, dele_level_at_creation,
+  source text,                   -- 'word_bank' | 'anki_weak_item'
+  source_word_bank_id uuid references word_bank(id) nullable,
+  source_note text,              -- raw originating term/noteText
+  dedup_status text default 'pending',  -- 'pending' | 'duplicate' | 'exported'
+  created_at, exported_at nullable
+)
+```
+
+### 14.8 Definition of done for Phase 5
+
+- Cards generate from both Word Bank entries and Anki weak items, calibrated
+  to `dialect` + `dele_level`, via a forced-tool Haiku call.
+- A repeated/near-duplicate term generates a second row flagged
+  `dedup_status='duplicate'`, not a second `'pending'` row.
+- TSV export contains only `'pending'` cards, in the three-column format
+  above, and flips exported rows (and their source Word Bank row, where
+  traceable) to `'exported'`.
+- Flashcards tab follows the Mobile UI conventions (CLAUDE.md) from the
+  start — no retrofit.
+- Migration (`flashcards` table) follows §8.5; all prior data intact.

@@ -8,10 +8,11 @@ the always-loaded context.
 A single-user (for now), research-backed Spanish practice web app (working
 title *Aula*) that is also a full-stack portfolio piece. Four interconnected
 tabs around a persistent categorized **error log**, plus a sibling **Word
-Bank**. **Writing, Phase 2 (error-log spine + Word Bank), and Phase 3 (Lessons)
-are shipped. Phase 4 (Workbook + Anki read-path ingest + proxy token metering)
-is the current build.** Do not build Flashcards (Phase 5), the Anki write-back
-path, or any auth/billing (Phase 6) yet.
+Bank**. **Writing, Phase 2 (error-log spine + Word Bank), Phase 3 (Lessons),
+and Phase 4 (Workbook + Anki read-path ingest + proxy token metering) are
+shipped. Phase 5 (Flashcards: card generation + master-list dedup + Anki
+write-back via TSV export) is the current build.** Do not build any
+auth/billing (Phase 6) yet.
 
 ## Owner context (informs generated Spanish, never leaks into UI)
 
@@ -95,10 +96,24 @@ path, or any auth/billing (Phase 6) yet.
 - **Objective exercise grading is auto-match-first, LLM-fallback for
   near-misses only** (accent-only diffs, defensible alternates) — no API call
   when a plain normalized match succeeds. Sentence production is LLM-graded.
-- **Anki ingest is READ-PATH ONLY this phase:** parse an uploaded `.colpkg`
-  (SQLite) in plain Python, extract weak items by FSRS stability/lapses/
-  retention. Card generation, TSV/`.apkg` export, and master-list dedup are
-  **Phase 5** — do not build them now (PRD §10.5).
+- **Anki read path (Phase 4, shipped) stays read-only:** the `.colpkg` parser
+  (`api/anki-ingest.py`) only ever parses and returns weak items — never
+  writes back to the learner's Anki collection. Phase 5's write-back is a
+  **separate, app-side TSV export** the learner imports into Anki manually;
+  it does not touch the uploaded `.colpkg` file or write Anki's SQLite
+  format directly (PRD §10.5, §14).
+- **Flashcards (Phase 5) generates from two sources**: Word Bank entries and
+  Anki weak items (reusing `api/anki-ingest.py`'s existing FSRS output as an
+  input, not rebuilding weak-item detection). Dedup is by normalized term
+  match against existing `flashcards` rows, reusing
+  `src/shared/workbook/matching.ts`'s `normalizeForMatch` — do not
+  reimplement term normalization. **Flashcard review never writes to
+  `error_observations`** — it isn't a graded production attempt, and mixing
+  it into that table would pollute the avoidance-proofing trend math the
+  same way an unguarded duplicate entry would (see the entries-dedup
+  discussion, PRD §13). Export is **TSV only** this phase — no real `.apkg`
+  binary (would require hand-rolling Anki's SQLite collection format or a
+  new dependency; out of scope for the "lean and adaptable" principle above).
 - **Word Bank capture stays unstructured**; "+ Word" is app-level (every tab),
   not rebuilt per-tab.
 - **No staleness/regeneration machinery for Lessons; threads store
@@ -126,9 +141,11 @@ path, or any auth/billing (Phase 6) yet.
     /word-bank      # app-level floating "+ Word"
     /lessons        # threaded chat, log/tally
     /workbook       # phase 4: exercise gen, session view, grading, anki ingest UI
+    /flashcards     # phase 5: card generation, dedup browse view, TSV export
   /shared
     /grading        # rubric + grading contract types (shared enum, schemas)
     /prompts        # templates parameterized by dialect + dele_level
+    /flashcards     # phase 5: generation tool schema + types (mirrors /workbook)
     /db             # Supabase client + queries
   /components
 /api                # Vercel serverless functions (Anthropic proxy + token metering)
@@ -153,30 +170,34 @@ path, or any auth/billing (Phase 6) yet.
 
 ## Definitions of done
 
-- **v1 / Phase 2 / Phase 3:** shipped (see repo history).
+- **v1 / Phase 2 / Phase 3 / Phase 4:** shipped (see repo history).
 - **Phase 3 open follow-up:** add `react-markdown` so `**bold**`/`##` render in
   lesson bubbles; live-verify the `dele_level_at_creation` pinning invariant.
-- **Phase 4 (current):**
-  - Four exercise types (contextual cloze, conjugation recall, sentence
-    production, isolated gap-fill) generate in the owner's worksheet style,
-    calibrated to `dialect` + `dele_level`. No matching type.
-  - Session sourcing works auto (from a flagged category) and via freeform
-    request; Writing's feedback screen deep-links into a seeded session.
-  - Objective grading auto-match-first + LLM near-miss fallback; sentence
-    production LLM-graded.
-  - Workbook attempts write `error_observations` with `source_tab='workbook'`
-    into the shared table; a synthetic drill adds to a category's in-window
-    counts, and sustained correct answers are the path by which its escalation
-    flag ages out.
-  - `.colpkg` upload → Python parser returns a weak-item list by FSRS
-    stability/lapses, usable as a Workbook targeting source. Read path only.
-  - Proxy token metering live: every call logs input/output tokens to
-    `usage_log`.
-  - Migrations (`source_tab` column, `usage_log` table) follow the safety rule;
-    all prior data intact.
-  - **Three-tier `known_structures` rule verified with three separate
-    synthetic tests**: (a) non-cloze Workbook type never uses an untaught
-    structure outside the deliberate target; (b) cloze narrative, if it uses an
-    untaught-but-essential structure, flags it inline — never silently; (c) a
-    Writing prompt strictly avoids untaught structures with zero exception.
-- **Phase 5 / Phase 6:** not started / parked (PRD §11).
+- **Phase 4 open follow-up (carried forward, not a Phase 5 blocker):**
+  **three-tier `known_structures` rule verification with three separate
+  synthetic tests** — (a) non-cloze Workbook type never uses an untaught
+  structure outside the deliberate target; (b) cloze narrative, if it uses an
+  untaught-but-essential structure, flags it inline — never silently; (c) a
+  Writing prompt strictly avoids untaught structures with zero exception.
+  Everything else in Phase 4 (exercise generation, session sourcing,
+  objective/sentence-production grading, `source_tab` write-back, Anki
+  read-path ingest, token metering, migrations) is built and shipped.
+- **Phase 5 (current):**
+  - Card generation from two sources — Word Bank entries and Anki weak items
+    (via `api/anki-ingest.py`'s existing FSRS output) — produces
+    term/translation/example-sentence flashcards calibrated to `dialect` +
+    `dele_level`, via a Haiku tool call (PRD §14).
+  - Master-list dedup: a generated candidate whose normalized term
+    (`normalizeForMatch`) matches an existing `flashcards` row is stored as
+    `dedup_status='duplicate'`, visible in the browse view, excluded from
+    export — not silently dropped.
+  - TSV export (`term`/`translation`/`example_sentence`, no header row) marks
+    exported cards `dedup_status='exported'`, and the source `word_bank` row
+    (when traceable) too.
+  - New tabs follow the Mobile UI conventions above from the start, per the
+    standing rule.
+  - **Explicitly not built this phase:** entry regrade (PRD §13 — documented,
+    deferred; needs its own per-entry History browse view first), a real
+    `.apkg` binary export, and any in-app flashcard review/study mode (Anki
+    itself is the review surface, per PRD §10.5's "desktop as hub" framing).
+- **Phase 6:** parked (PRD §11).
