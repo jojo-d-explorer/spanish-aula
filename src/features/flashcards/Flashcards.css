@@ -1,0 +1,112 @@
+.flashcards-tab {
+  --surface-1: #fcfcfb;
+  --surface-2: #f1f0ec;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --status-critical: #d03b3b;
+  --status-warning: #fab219;
+  --status-ok: #2f9e44;
+  --border: rgba(11, 11, 11, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .flashcards-tab {
+    --surface-1: #1a1a19;
+    --surface-2: #232320;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --status-critical: #d03b3b;
+    --status-warning: #fab219;
+    --status-ok: #51cf66;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.flashcards-generate__section {
+  margin-bottom: 24px;
+}
+
+.flashcards-source-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Label wraps the checkbox so the whole row is the tap target, not just the
+   small native checkbox glyph (Mobile UI conventions, CLAUDE.md). */
+.flashcards-source-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+}
+
+.flashcards-source-item input[type='checkbox'] {
+  min-height: 20px;
+  min-width: 20px;
+  flex-shrink: 0;
+}
+
+.flashcards-source-item__meta {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.flashcards-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flashcards-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  text-align: left;
+}
+
+.flashcards-card--duplicate {
+  border-color: var(--status-warning);
+}
+
+.flashcards-card--exported {
+  opacity: 0.6;
+}
+
+.flashcards-card__term {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.flashcards-card__translation {
+  color: var(--text-secondary);
+}
+
+.flashcards-card__example {
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.flashcards-card__meta {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 6px;
+  text-transform: capitalize;
+}

@@ -2,12 +2,13 @@ import { useCallback, useState } from 'react';
 import WritingTab from './features/writing/WritingTab';
 import LessonsTab from './features/lessons/LessonsTab';
 import WorkbookTab from './features/workbook/WorkbookTab';
+import FlashcardsTab from './features/flashcards/FlashcardsTab';
 import WordBankCapture from './features/word-bank/WordBankCapture';
 import type { ErrorCategory } from './shared/grading/types';
 import './App.css';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'writing' | 'lessons' | 'workbook'>('writing');
+  const [activeTab, setActiveTab] = useState<'writing' | 'lessons' | 'workbook' | 'flashcards'>('writing');
   // The single deliberate exception to "sub-view state stays local" — scoped
   // only to the cross-tab deep-link target, never any of Workbook's own view
   // state (Writing/Lessons/Workbook each still own their internal sub-views).
@@ -50,11 +51,20 @@ function App() {
         >
           Workbook
         </button>
+        <button
+          className={`tab ${activeTab === 'flashcards' ? 'tab--active' : ''}`}
+          type="button"
+          aria-current={activeTab === 'flashcards' ? 'page' : undefined}
+          onClick={() => setActiveTab('flashcards')}
+        >
+          Flashcards
+        </button>
       </nav>
       <main>
         {activeTab === 'writing' && <WritingTab onPracticeCategory={handlePracticeCategory} />}
         {activeTab === 'lessons' && <LessonsTab onPracticeCategory={handlePracticeCategory} />}
         {activeTab === 'workbook' && <WorkbookTab seed={workbookSeed} onSeedConsumed={clearWorkbookSeed} />}
+        {activeTab === 'flashcards' && <FlashcardsTab />}
       </main>
       <WordBankCapture sourceTab={activeTab} />
     </div>
