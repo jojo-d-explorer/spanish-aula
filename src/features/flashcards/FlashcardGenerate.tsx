@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import type { DialectCode, DeleLevel } from '../../shared/prompts/writingPrompt';
+import type { FlashcardGenerateResponse } from '../../shared/flashcards/types';
 
 interface WordBankEntry {
   id: string;
@@ -7,10 +8,16 @@ interface WordBankEntry {
   contextSentence: string | null;
 }
 
-interface AnkiWeakItem {
+interface AnkiItem {
   noteText: string;
   deckName: string;
   weak: boolean;
+}
+
+interface GenerateSummary {
+  generatedCount: number;
+  outOfScopeCount: number;
+  alreadyKnownCount: number;
 }
 
 interface FlashcardGenerateProps {
@@ -24,13 +31,21 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
   const [wordBankStatus, setWordBankStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [selectedWordBankIds, setSelectedWordBankIds] = useState<Set<string>>(new Set());
 
-  const [ankiItems, setAnkiItems] = useState<AnkiWeakItem[]>([]);
+  // Kept unfiltered — seeding known_cards needs every card, not just weak
+  // ones (docs/ANKI_SCHEMA.md §7).
+  const [ankiAllItems, setAnkiAllItems] = useState<AnkiItem[]>([]);
   const [ankiUploadStatus, setAnkiUploadStatus] = useState<'idle' | 'uploading' | 'ready' | 'error'>('idle');
   const [ankiErrorMessage, setAnkiErrorMessage] = useState('');
   const [selectedAnkiTerms, setSelectedAnkiTerms] = useState<Set<string>>(new Set());
 
+  const [seedStatus, setSeedStatus] = useState<'idle' | 'seeding' | 'error'>('idle');
+  const [seedMessage, setSeedMessage] = useState('');
+
   const [genStatus, setGenStatus] = useState<'idle' | 'generating' | 'error'>('idle');
   const [genErrorMessage, setGenErrorMessage] = useState('');
+  const [genSummary, setGenSummary] = useState<GenerateSummary | null>(null);
+
+  const ankiWeakItems = ankiAllItems.filter((item) => item.weak);
 
   useEffect(() => {
     fetch('/api/word-bank')
@@ -70,6 +85,7 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
 
     setAnkiUploadStatus('uploading');
     setAnkiErrorMessage('');
+    setSeedMessage('');
 
     const reader = new FileReader();
     reader.onload = async () => {
@@ -84,7 +100,7 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Failed to parse Anki export');
-        setAnkiItems((data.items as AnkiWeakItem[]).filter((item) => item.weak));
+        setAnkiAllItems(data.items as AnkiItem[]);
         setAnkiUploadStatus('ready');
       } catch (err) {
         console.error(err);
@@ -99,6 +115,27 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
     reader.readAsDataURL(file);
   }
 
+  async function handleSeed() {
+    if (ankiAllItems.length === 0) return;
+    setSeedStatus('seeding');
+    setSeedMessage('');
+    try {
+      const res = await fetch('/api/flashcards?seed=1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: ankiAllItems.map((item) => ({ noteText: item.noteText, deckName: item.deckName })) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to seed dedup ledger');
+      setSeedMessage(`Seeded ${data.seededCount} new terms (${data.skippedCount} already known).`);
+      setSeedStatus('idle');
+    } catch (err) {
+      console.error(err);
+      setSeedMessage(err instanceof Error ? err.message : 'Something went wrong.');
+      setSeedStatus('error');
+    }
+  }
+
   async function generate(
     source: 'word_bank' | 'anki_weak_item',
     items: { sourceNote: string; sourceWordBankId: string | null }[],
@@ -106,16 +143,23 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
     if (items.length === 0) return;
     setGenStatus('generating');
     setGenErrorMessage('');
+    setGenSummary(null);
     try {
       const res = await fetch('/api/flashcards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source, items, dialect, deleLevel }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Failed to generate flashcards');
+      const data: FlashcardGenerateResponse = await res.json();
+      if (!res.ok) throw new Error((data as unknown as { error?: string }).error ?? 'Failed to generate flashcards');
+
+      const outOfScopeCount = data.drafts.filter((d) => d.outOfScope).length;
+      setGenSummary({
+        generatedCount: data.drafts.length - outOfScopeCount,
+        outOfScopeCount,
+        alreadyKnownCount: data.alreadyKnown.length,
+      });
       setGenStatus('idle');
-      onGenerated();
     } catch (err) {
       console.error(err);
       setGenErrorMessage(err instanceof Error ? err.message : 'Something went wrong.');
@@ -131,7 +175,7 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
   }
 
   function handleGenerateFromAnki() {
-    const items = ankiItems
+    const items = ankiWeakItems
       .filter((item) => selectedAnkiTerms.has(item.noteText))
       .map((item) => ({ sourceNote: item.noteText, sourceWordBankId: null }));
     generate('anki_weak_item', items);
@@ -179,7 +223,8 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
         <h3>From Anki weak items</h3>
         <p>
           Upload an Anki <code>.colpkg</code> export (from desktop, without media — Anki's "Include media" checkbox
-          unchecked) to find weak cards to turn into flashcards.
+          unchecked). Use it to find weak cards to turn into flashcards, and/or to seed the dedup ledger from your
+          full deck so Aula knows what you already have.
         </p>
         <input
           type="file"
@@ -189,11 +234,22 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
         />
         {ankiUploadStatus === 'uploading' && <p>Parsing…</p>}
         {ankiUploadStatus === 'error' && <p role="alert">{ankiErrorMessage}</p>}
-        {ankiUploadStatus === 'ready' && ankiItems.length === 0 && <p>No weak items found in this deck.</p>}
-        {ankiUploadStatus === 'ready' && ankiItems.length > 0 && (
+        {ankiUploadStatus === 'ready' && (
+          <>
+            <p>
+              {ankiAllItems.length} cards found, {ankiWeakItems.length} flagged weak.{' '}
+              <button onClick={handleSeed} disabled={seedStatus === 'seeding'}>
+                {seedStatus === 'seeding' ? 'Seeding…' : 'Seed dedup ledger from this export'}
+              </button>
+            </p>
+            {seedMessage && <p role={seedStatus === 'error' ? 'alert' : 'status'}>{seedMessage}</p>}
+          </>
+        )}
+        {ankiUploadStatus === 'ready' && ankiWeakItems.length === 0 && <p>No weak items found in this deck.</p>}
+        {ankiUploadStatus === 'ready' && ankiWeakItems.length > 0 && (
           <>
             <ul className="flashcards-source-list">
-              {ankiItems.map((item) => (
+              {ankiWeakItems.map((item) => (
                 <li key={item.noteText}>
                   <label className="flashcards-source-item">
                     <input
@@ -220,6 +276,17 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
       </div>
 
       {genStatus === 'error' && <p role="alert">{genErrorMessage}</p>}
+
+      {genSummary && (
+        <div className="flashcards-gen-summary" role="status">
+          <p>
+            {genSummary.generatedCount} card{genSummary.generatedCount === 1 ? '' : 's'} generated
+            {genSummary.outOfScopeCount > 0 && `, ${genSummary.outOfScopeCount} flagged as grammar (not vocabulary)`}
+            {genSummary.alreadyKnownCount > 0 && `, ${genSummary.alreadyKnownCount} already in your deck (skipped)`}.
+          </p>
+          <button onClick={onGenerated}>Review drafts →</button>
+        </div>
+      )}
     </div>
   );
 }

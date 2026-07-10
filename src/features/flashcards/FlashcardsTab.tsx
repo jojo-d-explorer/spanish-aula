@@ -8,7 +8,6 @@ function FlashcardsTab() {
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
   const [settingsError, setSettingsError] = useState('');
   const [view, setView] = useState<'generate' | 'browse'>('generate');
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     fetch('/api/settings')
@@ -24,7 +23,6 @@ function FlashcardsTab() {
   }, []);
 
   function handleGenerated() {
-    setRefreshKey((k) => k + 1);
     setView('browse');
   }
 
@@ -45,7 +43,7 @@ function FlashcardsTab() {
       {view === 'generate' && settings && (
         <FlashcardGenerate dialect={settings.dialect} deleLevel={settings.deleLevel} onGenerated={handleGenerated} />
       )}
-      {view === 'browse' && <FlashcardBrowse refreshKey={refreshKey} />}
+      {view === 'browse' && <FlashcardBrowse />}
     </section>
   );
 }
