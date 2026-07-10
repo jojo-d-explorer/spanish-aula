@@ -200,7 +200,7 @@ usage_log (
 | 2 | Error-log spine hardened; taxonomy trends; **Word Bank** | Done |
 | 3 | **Lessons tab** — conversational, mixed-language, seedable from error log | Done |
 | 4 | **Workbook tab** — exercises targeting weak categories; **Anki ingest (read path)**; proxy token metering | **Next** |
-| 5 | Flashcards tab — card generation in note-type schema + dedup (Anki **write** path); weak-item detection | Not started |
+| 5 | Flashcards tab — card generation in note-type schema + dedup (Anki **write** path); weak-item detection; **entry regrade for incomplete gradings (§13)** | Not started |
 | 6 | Multi-tenancy & monetization — auth, per-user metering surfaced, tiers/caps, onboarding | Parked — see §11 |
 
 ---
@@ -476,3 +476,63 @@ alongside it ("this covers imperfect + preterite irregulars") appended to
 `known_structures`. Deliberately manual/asserted by the learner, not
 auto-extracted by an LLM. Not built in Phase 4 — the manual Settings text-area
 edit (§12.2) is the complete Phase 4 mechanism.
+
+---
+
+## 13. Entry regrade (Phase 5, not built)
+
+### 13.1 Problem
+
+`persistGradedEntry` (`src/shared/db/entries.ts`) always does a plain
+`INSERT` — there's no way to fix an entry whose grading came back incomplete
+except resubmitting the same text, which creates a **second** `entries` row
+and a **second** batch of `error_observations` rows tied to it. That's not
+cosmetic: `fetchHistoryData` reads every `entries` row (sophistication trend)
+and every `error_observations` row (category accuracy/exposure trend)
+unfiltered, and the 14-day trend window (§5, §8.3) keys off
+`error_observations.created_at` directly. A duplicate observation batch
+double-counts exposure and skews accuracy for whatever categories the entry
+touched — directly against this app's avoidance-proofing design principle
+(§2): accuracy is correct ÷ **genuine** attempts.
+
+### 13.2 Current status of the failure mode
+
+As of the `isCompleteGradingContract` guard (added alongside the mobile pass,
+same session as this spec), a truncated/incomplete grading now returns a 502
+and is **never persisted** — `api/grade.ts` returns before calling
+`persistGradedEntry`. So this is not an active failure mode for *new*
+entries; it only applies to rows written **before** that guard shipped, when
+a blind `as GradingContract` cast let partial data (empty `feedback_prose`)
+through silently. Phase 5 should decide whether to backfill-detect those old
+rows (a read-time check: `feedback_prose = ''`) or treat this as closed now
+that the write path is guarded — don't assume it's still live without
+checking.
+
+### 13.3 Design
+
+An explicit "Regrade" action tied to a known `entryId` — not inferred from
+text-matching, matching this codebase's preference for explicit signals over
+inference (e.g. `source_tab` tagging, §10.4). Server-side: `UPDATE entries`
+in place (corrected_text/feedback/sophistication/dele_level_estimate) +
+delete-then-reinsert the `error_observations` rows for that `entry_id`, as
+one logical operation. Reuse the existing compensating-action pattern already
+in `persistGradedEntry` (which rolls back the `entries` insert if the
+observations insert fails) rather than inventing a new transaction pattern.
+
+**Trigger condition**: only offered when the stored entry's grading is
+flagged incomplete (empty/missing `feedback_prose` — the truncation bug's
+exact signature). Not a general "resubmit any past entry" button.
+
+**Explicit non-goal**: general redo/resubmit of a legitimately-graded past
+entry. Workbook has a hard rule that observations are forward-only — never
+edited or deleted — specifically to prevent gaming the avoidance-proofing
+flags (CLAUDE.md Hard rules; §10.4). A general regrade-anything feature would
+cross that same line for Writing. Regrade here is scoped strictly to "fix a
+technically-broken result," not "re-roll for a better outcome."
+
+**Audit column**: `entries.last_regraded_at timestamptz null`, so a regraded
+row is visibly distinguishable from a first-pass grading. Deliberately
+minimal — no full history/versioning table (§2's "lean and adaptable").
+
+**Migration safety**: any new column follows §8.5 — versioned migration
+file, backup first, same as every prior phase's schema change.
