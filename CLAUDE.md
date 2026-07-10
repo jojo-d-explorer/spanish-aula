@@ -76,10 +76,16 @@ auth/billing (Phase 6) yet.
   forward from Phase 4** (new Workbook rationale text): English for core rule
   + English/Portuguese contrastive notes; Spanish for examples, exercises,
   checks. Not a retrofit for shipped Lessons, which stays Spanish-first as-is.
-- **Runtime model routing:** grading + lessons → Sonnet; workbook + flashcard
-  generation → Haiku; Anki parsing → plain Python, no LLM. Do **not** call
-  Fable/Opus at runtime. (This routing is also the future margin story — keep
-  high-volume generation on Haiku.)
+- **Runtime model routing:** grading + lessons → Sonnet; workbook generation
+  + the near-miss judge → Haiku; Anki parsing → plain Python, no LLM. Do
+  **not** call Fable/Opus at runtime. (This routing is also the future
+  margin story — keep high-volume generation on Haiku.)
+- **Flashcard card-content generation is Sonnet, not Haiku — deliberate
+  exception to the routing rule above.** Per `docs/ANKI_SCHEMA.md` §8:
+  quality/consistency matters more than volume for this call (wrong note
+  type, wrong deck, or a botched conjugation table is worse than a slightly
+  slower/pricier generation). Workbook generation and the near-miss judge
+  stay Haiku — this exception is scoped to Flashcards only.
 - **Enable prompt caching** on the stable system+rubric prefix; cap output tokens.
 - The grader returns the **grading contract JSON** (PRD §4) with per-category
   `obligatory_contexts` + `correct` counts — identically for prompted entries,
@@ -117,16 +123,25 @@ auth/billing (Phase 6) yet.
   didn't fit the real deck at all.
 - **Flashcards (Phase 5) generates from two sources**: Word Bank entries and
   Anki weak items (reusing `api/anki-ingest.py`'s existing FSRS output as an
-  input, not rebuilding weak-item detection). Dedup is by normalized term
-  match against existing `flashcards` rows, reusing
-  `src/shared/workbook/matching.ts`'s `normalizeForMatch` — do not
-  reimplement term normalization. **Flashcard review never writes to
-  `error_observations`** — it isn't a graded production attempt, and mixing
-  it into that table would pollute the avoidance-proofing trend math the
-  same way an unguarded duplicate entry would (see the entries-dedup
-  discussion, PRD §13). Export is **TSV only** this phase — no real `.apkg`
-  binary (would require hand-rolling Anki's SQLite collection format or a
-  new dependency; out of scope for the "lean and adaptable" principle above).
+  input, not rebuilding weak-item detection; that endpoint already returns
+  every card, weak or not — Flashcards' `known_cards` seeding uses the
+  *unfiltered* list from the same upload, no Python changes needed).
+  **Dedup happens before generation, against `known_cards`** — a term that
+  already matches (via `normalizeForMatch`, reused from
+  `src/shared/workbook/matching.ts`) is flagged and never sent to the
+  model, not generated-then-discarded. `known_cards` is seeded from a real
+  Anki export, not built up from the app's own history, and grows as
+  confirmed cards are added (PRD §14, `docs/ANKI_SCHEMA.md` §7). Generation
+  **stages, it doesn't commit** — cards land as `status='draft'` for
+  review/edit before an explicit confirm adds them to `known_cards` and
+  makes them export-eligible (`docs/ANKI_SCHEMA.md` §8). **Flashcard review
+  never writes to `error_observations`** — it isn't a graded production
+  attempt, and mixing it into that table would pollute the avoidance-
+  proofing trend math the same way an unguarded duplicate entry would (see
+  the entries-dedup discussion, PRD §13). Export is **TSV only**, one file
+  per (deck, note type) group matching the real deck structure — no real
+  `.apkg` binary (would require hand-rolling Anki's SQLite collection
+  format or a new dependency; out of scope for "lean and adaptable" above).
 - **Word Bank capture stays unstructured**; "+ Word" is app-level (every tab),
   not rebuilt per-tab.
 - **No staleness/regeneration machinery for Lessons; threads store
@@ -212,22 +227,33 @@ auth/billing (Phase 6) yet.
   in Phase 4 (exercise generation, session sourcing, objective/sentence-
   production grading, `source_tab` write-back, Anki read-path ingest, token
   metering, migrations) is built and shipped.
-- **Phase 5 (current):**
+- **Phase 5 (current) — rebuilt to match `docs/ANKI_SCHEMA.md`:**
   - Card generation from two sources — Word Bank entries and Anki weak items
-    (via `api/anki-ingest.py`'s existing FSRS output) — produces
-    term/translation/example-sentence flashcards calibrated to `dialect` +
-    `dele_level`, via a Haiku tool call (PRD §14).
-  - Master-list dedup: a generated candidate whose normalized term
-    (`normalizeForMatch`) matches an existing `flashcards` row is stored as
-    `dedup_status='duplicate'`, visible in the browse view, excluded from
-    export — not silently dropped.
-  - TSV export (`term`/`translation`/`example_sentence`, no header row) marks
-    exported cards `dedup_status='exported'`, and the source `word_bank` row
-    (when traceable) too.
+    — produces a card matching one of the two real note types (`Spanish
+    Verb`, 13 fields; `Spanish General Word`, 4 fields), targeting one of
+    the 11 real subdecks, via a Sonnet tool call using `docs/ANKI_SCHEMA.md`
+    as embedded context (PRD §14).
+  - `known_cards` dedup ledger, seeded from a real Anki export (not the
+    Google Doc master list, not the app's own generation history). A
+    selected term matching `known_cards` is flagged before generation, not
+    generated then discarded.
+  - Generation **stages, it doesn't commit**: cards land as
+    `status='draft'` for review — `note_type`/`deck`/`tags` editable,
+    generated content read-only with a per-card regenerate action. Confirm
+    adds the card to `known_cards` and makes it export-eligible; reject
+    discards it. This is curatorial review, not an in-app spaced-repetition
+    *study* mode — Anki itself stays the review/study surface (PRD §10.5's
+    "desktop as hub" framing); this review step only exists to catch
+    misclassification before export, same problem the original ad hoc
+    generation attempt ran into.
+  - TSV export, one file per `(deck, note_type)` group, 5-line header
+    format matching `docs/ANKI_SCHEMA.md` §3 exactly (field order is
+    load-bearing — TSV import maps by column position, not header name).
   - New tabs follow the Mobile UI conventions above from the start, per the
     standing rule.
-  - **Explicitly not built this phase:** entry regrade (PRD §13 — documented,
-    deferred; needs its own per-entry History browse view first), a real
-    `.apkg` binary export, and any in-app flashcard review/study mode (Anki
-    itself is the review surface, per PRD §10.5's "desktop as hub" framing).
+  - **Explicitly not built this phase:** entry regrade (PRD §13 —
+    documented, deferred; needs its own per-entry History browse view
+    first), a real `.apkg` binary export, the `OtrasFormas` tense-expansion
+    field gap (`docs/ANKI_SCHEMA.md` §6 — not built unless explicitly
+    asked), and any in-app flashcard *study* mode.
 - **Phase 6:** parked (PRD §11).

@@ -555,99 +555,168 @@ file, backup first, same as every prior phase's schema change.
 
 ---
 
-## 14. Phase 5 Spec: Flashcards Tab (card generation + dedup + TSV export)
+## 14. Phase 5 Spec: Flashcards Tab (rebuilt to match the real Anki deck)
+
+**Rebuilt this session** — the original implementation (generic
+term/translation/example cards, dedup against its own generation history)
+ignored the learner's actual Anki collection and produced cards that didn't
+fit it. `docs/ANKI_SCHEMA.md` is now the authoritative contract for deck
+structure, note types, tagging, and dedup; this section describes the
+design built against it. Read `docs/ANKI_SCHEMA.md` alongside this section
+— it has the full deck table, field-by-field note-type definitions, and the
+tagging vocabulary that this section only summarizes.
 
 ### 14.1 Purpose
 
 Recognition-focused review, complementing Workbook's production-focused
-drilling (§10.2: "recognition work belongs to Flashcards"). Generates
-Anki-importable cards from two sources — Word Bank captures and Anki weak
-items — dedups them against the existing card set, and exports as TSV for
-the learner to import into Anki manually. **Anki remains the review surface**
-(§10.5's "desktop as hub" framing) — this tab generates and curates, it does
-not build a competing in-app spaced-repetition study mode.
+drilling (§10.2: "recognition work belongs to Flashcards"). Generates cards
+that slot directly into the learner's real Anki deck — correct note type,
+correct subdeck, correct field order — dedups against what's actually
+already in that deck, and exports as TSV grouped by deck for manual import.
+**Anki remains the review/study surface** (§10.5's "desktop as hub"
+framing); Aula's own review step (§14.4) is curatorial (catch
+misclassification before export), not a competing spaced-repetition study
+mode.
 
 ### 14.2 Sources
 
-- **Word Bank** (§8.4) — every captured term is eligible. `word_bank` is the
-  "master word list" §10.5/§8.4 refer to; its `dedup_status` column
-  (currently always `'pending'` since Phase 2) is what this phase activates.
+- **Word Bank** (§8.4) — every captured term is eligible.
 - **Anki weak items** — reuses `api/anki-ingest.py`'s existing FSRS-based
-  weak-item output (lapses ≥ 4 OR retrievability < 0.85) as an input source.
-  No new weak-item detection logic; this phase only adds it as a second
-  generation source alongside Word Bank.
+  weak-item output (lapses ≥ 4 OR retrievability < 0.85) as an input source;
+  no new weak-item detection logic. The same upload's *unfiltered* item list
+  (every card, not just weak ones) is also what seeds `known_cards` (§14.5).
 
 ### 14.3 Generation
 
-One Haiku call per batch (model routing, Hard Rules), forced tool call
-producing `{ term, translation, example_sentence, category? }` per input
-item, calibrated to `dialect` + `dele_level` like every other generation
-path. **Does not apply `known_structures` (§12)** — confirmed during Phase 5
-planning that the rule isn't implemented anywhere yet (not even in
-Workbook's own generation prompt, despite being a documented Hard Rule), so
-Flashcards doesn't newly claim compliance with something that doesn't exist.
-Example sentences are calibrated to level but not constrained to the taught-
-grammar allowlist. Once `known_structures` is actually built (§12's status
-note), Flashcards' generation prompt should be threaded in alongside
-Workbook's at that time.
+One Sonnet call per batch — **not Haiku**, a deliberate exception to the
+model-routing Hard Rule, per `docs/ANKI_SCHEMA.md` §8: quality/consistency
+matters more than volume for this call. The system prompt embeds
+`docs/ANKI_SCHEMA.md`'s rules (deck list, note-type field order,
+classification rule, tagging vocabulary) as a TS constant
+(`src/shared/flashcards/ankiSchema.ts`) — chosen over reading the `.md` file
+at runtime to match every other prompt in this codebase (hardcoded
+templates, no runtime file reads), with the tradeoff that the embedded copy
+needs manual updating if `docs/ANKI_SCHEMA.md` changes.
 
-### 14.4 Dedup
+Forced tool call, per input item, producing: `note_type`
+(`Spanish Verb` | `Spanish General Word`, via the "has a conjugation table →
+Verb, else → General Word" rule), `deck` (one of the 11 real subdecks —
+best-effort LLM classification, correctable in review), every field for both
+note types (populate what's relevant, empty string otherwise — same
+convention `WORKBOOK_GENERATION_TOOL` already uses, since tool schemas don't
+reliably enforce conditional shapes), `tags` (against the controlled
+vocabulary in `docs/ANKI_SCHEMA.md` §4), and `out_of_scope` +
+`out_of_scope_reason` for terms that are actually grammar patterns, not
+vocabulary (§5 — flashcards are vocabulary only; a flagged term produces no
+card at all, not a bad one). Does not apply `known_structures` (§12) — still
+unimplemented anywhere in this codebase (unchanged from the original
+Phase 5 finding).
 
-Before persisting a generated candidate, its term is normalized
-(`normalizeForMatch`, `src/shared/workbook/matching.ts` — reused, not
-reimplemented) and compared against existing `flashcards.term` values. A
-match is stored anyway with `dedup_status = 'duplicate'` (visible in the
-browse view, so the learner can see what was skipped and why) rather than
-silently dropped, and is excluded from export.
+### 14.4 Dedup — `known_cards`
 
-### 14.5 Export
+Dedup happens **before** generation, not after. `known_cards` is a
+standalone ledger seeded from a real Anki export (same parser as §14.2's
+weak-item ingest, unfiltered), not from the app's own generation history and
+not from the Google Doc master word list (which has lagged behind the real
+deck before — `docs/ANKI_SCHEMA.md` §7). A selected term whose normalized
+form (`normalizeForMatch`, `src/shared/workbook/matching.ts`) matches
+`known_cards` is flagged in the generate response and never sent to the
+model. `known_cards` grows as confirmed cards are added (§14.5) — it's the
+always-current dedup source going forward, separate from whatever review
+state a `flashcards` row is in.
 
-TSV only this phase — no `.apkg` binary (would require hand-rolling Anki's
-SQLite collection/notetype format, or a new dependency; out of scope for the
-"lean and adaptable" principle, §2). Three tab-separated columns
-(`term`, `translation`, `example_sentence`), no header row, one line per
-`dedup_status = 'pending'` card. Export marks those cards — and their source
-`word_bank` row, where traceable — `dedup_status = 'exported'`.
+### 14.5 Generation → review → export (staged, not generate → done)
 
-### 14.6 Explicit non-goals this phase
+Generation produces `status='draft'` rows, not immediately export-eligible
+ones (`docs/ANKI_SCHEMA.md` §8 — the learner has caught misclassified verbs
+and wrong pronoun distinctions in past ad hoc generation, so review is load-
+bearing, not optional polish):
 
-- **No in-app flashcard review/study UI.** Anki is the review surface.
+1. Draft cards are editable (`note_type`, `deck`, `tags` — the fields most
+   likely to be wrong) with generated field content shown read-only plus a
+   per-card regenerate action, rather than raw multi-field editing.
+2. **Confirm**: adds the card to `known_cards` (ledger insert happens
+   *before* the status flip, so a partial failure never leaves something
+   marked confirmed without being deduped against — same ordering
+   discipline as `persistGradedEntry`'s compensating delete, §8.2) and makes
+   it export-eligible.
+3. **Reject**: discards the card. Not added to `known_cards`.
+
+### 14.6 Export
+
+TSV only — no `.apkg` binary (hand-rolling Anki's SQLite collection format,
+or a new dependency, is out of scope for "lean and adaptable," §2). One file
+per `(deck, note_type)` group (a deck could in principle hold either note
+type, so grouping is by the pair, not deck alone), with the 5-line header
+`docs/ANKI_SCHEMA.md` §3 specifies exactly (`#separator:tab`, `#html:true`,
+`#notetype:`, `#deck:Spanish Frequency::NN Name`, `#tags column:13|4`) —
+**field order is load-bearing**, TSV import maps by column position, not
+header name. One export button per group in the browse view (no zip, no
+all-at-once download — matches "lean," and importing into Anki happens a
+deck at a time anyway). Export marks that group's cards' `exported_at`.
+
+### 14.7 Explicit non-goals
+
+- **No in-app flashcard *study*/spaced-repetition UI.** Anki is the review
+  surface; Aula's review step is curatorial only (§14.5).
 - **Flashcard review never writes to `error_observations`.** That table is
-  for genuine graded production attempts (§10.4); a flip-card
-  self-assessment isn't a graded obligatory-context attempt and mixing it in
+  for genuine graded production attempts (§10.4); confirming/rejecting a
+  draft card isn't a graded obligatory-context attempt, and mixing it in
   would pollute the avoidance-proofing trend math the same way an unguarded
   duplicate Writing entry would (§13).
-- **Entry regrade (§13) stays deferred** — it needs its own per-entry
-  History browse view first (History currently only shows aggregated trend
-  cards), which is orthogonal scope to Flashcards.
-- **No real `.apkg` write-back to the learner's Anki collection.** The
-  Phase 4 read path (`api/anki-ingest.py`) stays read-only; TSV export is a
-  separate, one-way, manually-imported artifact.
+- **Entry regrade (§13) stays deferred** — orthogonal scope, needs its own
+  per-entry History browse view first.
+- **No real `.apkg` write-back.** `api/anki-ingest.py` stays read-only; TSV
+  export is a separate, one-way, manually-imported artifact.
+- **The `OtrasFormas` tense-expansion field gap** (`docs/ANKI_SCHEMA.md` §6
+  — the `Spanish Verb` note type has no copretérito/pretérito perfecto/
+  subjunctive field) is a known, documented gap, not built unless the
+  learner explicitly asks for it.
 
-### 14.7 Schema
+### 14.8 Schema
 
 ```sql
 flashcards (
-  id, term, translation, example_sentence,
-  category text nullable,        -- best-effort LLM tag, ErrorCategory enum — NOT fed into error_observations
+  id, status text default 'draft',  -- 'draft' | 'confirmed' | 'rejected'
+  note_type text,     -- 'Spanish Verb' | 'Spanish General Word'; null if out_of_scope
+  deck text,           -- one of the 11 real subdecks; null if out_of_scope
+  term text,           -- denormalized from fields->>'Word'
+  fields jsonb,         -- named object keyed by field name, matches note_type's layout; null if out_of_scope
+  tags text[] default '{}',
+  out_of_scope boolean default false,
+  out_of_scope_reason text,
   dialect, dele_level_at_creation,
-  source text,                   -- 'word_bank' | 'anki_weak_item'
+  source text,          -- 'word_bank' | 'anki_weak_item'
   source_word_bank_id uuid references word_bank(id) nullable,
-  source_note text,              -- raw originating term/noteText
-  dedup_status text default 'pending',  -- 'pending' | 'duplicate' | 'exported'
-  created_at, exported_at nullable
+  source_note text,
+  created_at, confirmed_at nullable, exported_at nullable
+)
+
+known_cards (
+  id, term text, deck text, note_type text,
+  source text,          -- 'seed_import' | 'generated'
+  flashcard_id uuid references flashcards(id) nullable,  -- set only when source='generated'
+  created_at
 )
 ```
 
-### 14.8 Definition of done for Phase 5
+### 14.9 Definition of done for Phase 5 (rebuilt)
 
-- Cards generate from both Word Bank entries and Anki weak items, calibrated
-  to `dialect` + `dele_level`, via a forced-tool Haiku call.
-- A repeated/near-duplicate term generates a second row flagged
-  `dedup_status='duplicate'`, not a second `'pending'` row.
-- TSV export contains only `'pending'` cards, in the three-column format
-  above, and flips exported rows (and their source Word Bank row, where
-  traceable) to `'exported'`.
+- Cards generate from both Word Bank entries and Anki weak items, targeting
+  the correct note type and one of the 11 real subdecks, via a forced-tool
+  Sonnet call using `docs/ANKI_SCHEMA.md` as embedded context.
+- A term matching `known_cards` is flagged in the generate response and
+  never sent to the model — not generated and discarded after the fact.
+- A term that's a grammar pattern, not vocabulary, comes back
+  `out_of_scope` with a reason, not a bad card.
+- Generated cards land as `status='draft'`; confirming one inserts it into
+  `known_cards` before flipping its status (ordering matters — see §14.5);
+  rejecting one does not touch `known_cards`.
+- TSV export groups confirmed cards by `(deck, note_type)`, one file per
+  group, 5-line header matching `docs/ANKI_SCHEMA.md` §3 exactly, correct
+  field count per row (13 for `Spanish Verb`, 4 for `Spanish General Word`,
+  Tags always last).
 - Flashcards tab follows the Mobile UI conventions (CLAUDE.md) from the
   start — no retrofit.
-- Migration (`flashcards` table) follows §8.5; all prior data intact.
+- Migration (`flashcards` redesign + new `known_cards` table) follows §8.5;
+  all prior data intact.
