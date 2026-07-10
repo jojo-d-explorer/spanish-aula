@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
-import type { GradingContract } from '../src/shared/grading/types.js';
+import { isCompleteGradingContract, type GradingContract } from '../src/shared/grading/types.js';
 import { buildGradingSystemPrompt, GRADING_TOOL } from '../src/shared/grading/rubric.js';
 import { persistGradedEntry } from '../src/shared/db/entries.js';
 import { isDeleLevel, type DialectCode, type DeleLevel } from '../src/shared/prompts/writingPrompt.js';
@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const completion = await anthropic.messages.create({
       model: 'claude-sonnet-5', // grading → Sonnet, per CLAUDE.md model routing
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: [
         {
           type: 'text',
@@ -66,7 +66,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const grading = toolUse.input as GradingContract;
+    const rawGrading = toolUse.input;
+    if (completion.stop_reason === 'max_tokens' || !isCompleteGradingContract(rawGrading)) {
+      console.error('Truncated or incomplete grading result', {
+        stop_reason: completion.stop_reason,
+        input: rawGrading,
+      });
+      res.status(502).json({ error: 'Grading response was cut off before it finished — please try again.' });
+      return;
+    }
+
+    const grading: GradingContract = rawGrading;
 
     let entryId: string | null = null;
     let persistError: string | undefined;

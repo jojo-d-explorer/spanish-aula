@@ -7,7 +7,7 @@ import { persistWorkbookObservations } from '../src/shared/db/workbook.js';
 import type { WorkbookObservationInput } from '../src/shared/db/workbook.js';
 import { logUsage } from '../src/shared/db/usage.js';
 import { isDeleLevel, type DialectCode, type DeleLevel } from '../src/shared/prompts/writingPrompt.js';
-import type { GradingContract } from '../src/shared/grading/types.js';
+import { isCompleteGradingContract, type GradingContract } from '../src/shared/grading/types.js';
 import type {
   ExerciseItem,
   ObjectiveAnswer,
@@ -132,7 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const gradeCompletion = await anthropic.messages.create({
         model: 'claude-sonnet-5', // grading → Sonnet, per CLAUDE.md model routing
-        max_tokens: 4096,
+        max_tokens: 8192,
         system: [
           { type: 'text', text: buildGradingSystemPrompt(dialect, deleLevel), cache_control: { type: 'ephemeral' } },
         ],
@@ -153,7 +153,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
       if (!toolUse) continue;
 
-      const grading = toolUse.input as GradingContract;
+      const rawGrading = toolUse.input;
+      if (gradeCompletion.stop_reason === 'max_tokens' || !isCompleteGradingContract(rawGrading)) {
+        console.error('Truncated or incomplete sentence-production grading result', {
+          stop_reason: gradeCompletion.stop_reason,
+          input: rawGrading,
+        });
+        continue;
+      }
+
+      const grading: GradingContract = rawGrading;
       sentenceProduction.push({ itemId: answer.itemId, submitted: answer.submitted, grading });
     }
 

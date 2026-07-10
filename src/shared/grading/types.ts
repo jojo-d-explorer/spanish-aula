@@ -76,3 +76,25 @@ export interface GradingContract {
   feedback_prose: string;
   dele_level_estimate: DeleLevelEstimate;
 }
+
+// Guards against a tool call truncated by max_tokens: corrected_text and
+// accuracy.observations are generated first and can come through intact
+// while feedback_prose/dele_level_estimate (generated last) are cut off —
+// a blind `as GradingContract` cast would silently pass that through.
+export function isCompleteGradingContract(value: unknown): value is GradingContract {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Partial<GradingContract>;
+  return (
+    typeof v.corrected_text === 'string' &&
+    typeof v.feedback_prose === 'string' &&
+    v.feedback_prose.trim().length > 0 &&
+    typeof v.dele_level_estimate === 'string' &&
+    (DELE_LEVELS as readonly string[]).includes(v.dele_level_estimate) &&
+    !!v.accuracy &&
+    Array.isArray(v.accuracy.observations) &&
+    !!v.accuracy.category_summary &&
+    !!v.sophistication &&
+    typeof v.sophistication.overall === 'number' &&
+    !!v.sophistication.subscores
+  );
+}
