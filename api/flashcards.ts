@@ -87,8 +87,10 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
   const items: FlashcardSourceItem[] = rawItems
-    .map((raw) => {
+    .map((raw): FlashcardSourceItem | null => {
       const item = raw as Partial<FlashcardSourceItem>;
       const sourceNote = typeof item.sourceNote === 'string' ? item.sourceNote.trim() : '';
       if (!sourceNote) return null;
@@ -96,6 +98,7 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
         sourceNote,
         sourceWordBankId:
           source === 'word_bank' && typeof item.sourceWordBankId === 'string' ? item.sourceWordBankId : null,
+        sourceDate: typeof item.sourceDate === 'string' && DATE_ONLY.test(item.sourceDate) ? item.sourceDate : null,
       };
     })
     .filter((item): item is FlashcardSourceItem => item !== null);
@@ -124,7 +127,12 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
     }
 
     const batchIds = toGenerate.map((_, i) => `item-${i}`);
-    const userMessage = toGenerate.map((item, i) => `${batchIds[i]}: ${item.sourceNote}`).join('\n');
+    const userMessage = toGenerate
+      .map((item, i) => {
+        const dateSuffix = item.sourceDate ? ` (captured ${item.sourceDate})` : '';
+        return `${batchIds[i]}: ${item.sourceNote}${dateSuffix}`;
+      })
+      .join('\n');
 
     const completion = await anthropic.messages.create({
       model: 'claude-sonnet-5', // flashcard content generation → Sonnet, deliberate exception (CLAUDE.md Hard Rules)

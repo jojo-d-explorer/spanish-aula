@@ -1,11 +1,12 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import type { DialectCode, DeleLevel } from '../../shared/prompts/writingPrompt';
-import type { FlashcardGenerateResponse } from '../../shared/flashcards/types';
+import type { FlashcardGenerateResponse, FlashcardSourceItem } from '../../shared/flashcards/types';
 
 interface WordBankEntry {
   id: string;
   term: string;
   contextSentence: string | null;
+  createdAt: string;
 }
 
 interface AnkiItem {
@@ -136,10 +137,7 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
     }
   }
 
-  async function generate(
-    source: 'word_bank' | 'anki_weak_item',
-    items: { sourceNote: string; sourceWordBankId: string | null }[],
-  ) {
+  async function generate(source: 'word_bank' | 'anki_weak_item', items: FlashcardSourceItem[]) {
     if (items.length === 0) return;
     setGenStatus('generating');
     setGenErrorMessage('');
@@ -168,16 +166,24 @@ function FlashcardGenerate({ dialect, deleLevel, onGenerated }: FlashcardGenerat
   }
 
   function handleGenerateFromWordBank() {
-    const items = wordBankEntries
+    const items: FlashcardSourceItem[] = wordBankEntries
       .filter((entry) => selectedWordBankIds.has(entry.id))
-      .map((entry) => ({ sourceNote: entry.term, sourceWordBankId: entry.id }));
+      .map((entry) => ({
+        sourceNote: entry.term,
+        sourceWordBankId: entry.id,
+        // Real capture date for the leccion:: tag (docs/ANKI_SCHEMA.md §4)
+        // — never invent one for terms where this isn't available.
+        sourceDate: entry.createdAt.slice(0, 10),
+      }));
     generate('word_bank', items);
   }
 
   function handleGenerateFromAnki() {
-    const items = ankiWeakItems
+    // No per-card date available from Anki's weak-item output — the
+    // generator omits the leccion:: tag rather than guessing.
+    const items: FlashcardSourceItem[] = ankiWeakItems
       .filter((item) => selectedAnkiTerms.has(item.noteText))
-      .map((item) => ({ sourceNote: item.noteText, sourceWordBankId: null }));
+      .map((item) => ({ sourceNote: item.noteText, sourceWordBankId: null, sourceDate: null }));
     generate('anki_weak_item', items);
   }
 

@@ -49,6 +49,12 @@ export interface KnownCardRecord {
 export interface FlashcardSourceItem {
   sourceNote: string; // the term (Word Bank) or noteText (Anki)
   sourceWordBankId: string | null; // set only when source === 'word_bank'
+  // Word Bank's real capture date (YYYY-MM-DD), for the leccion:: tag
+  // (docs/ANKI_SCHEMA.md §4 — "dated to the lesson or source it came
+  // from"). Anki weak items have no equivalent per-card date, so this is
+  // null for that source — the generator must omit the tag rather than
+  // invent a date, never fabricate one.
+  sourceDate: string | null;
 }
 
 export interface FlashcardGenerateRequest {

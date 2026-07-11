@@ -26,7 +26,8 @@ is ${dialectName}. You will be given a batch of Spanish terms or phrases,
 each tagged with a batch id — these came from the learner's own Word Bank
 captures or from Anki cards flagged as weak, so treat every term as
 something the learner already encountered and wants reinforced, not new
-vocabulary you're introducing.
+vocabulary you're introducing. Some items include the real date the term
+was captured; others don't (Anki weak items have no per-card date).
 
 Every card you produce must slot directly into the learner's real, existing
 Anki collection — wrong note type, wrong deck, or a malformed conjugation
@@ -48,6 +49,11 @@ the exact format specified. Populate only the fields relevant to the chosen
 note_type; leave every other field as an empty string rather than omitting
 it. Assign tags from the controlled vocabulary only — omit tags that don't
 clearly apply rather than forcing one.
+
+**leccion:: tag — never invent a date.** If the item's batch line includes
+a captured date, use that exact date verbatim for the leccion:: tag. If no
+date is given, omit the leccion:: tag entirely for that card — a missing
+tag is correct; a fabricated date is not.
 
 ## Output
 
