@@ -143,11 +143,7 @@ function FlashcardBrowse() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: card.source,
-          // sourceDate is null here since the original capture date isn't
-          // persisted on flashcards rows — a regenerated card's leccion::
-          // tag will be omitted rather than guessed. Known gap: worth a
-          // source_date column later if this turns out to matter.
-          items: [{ sourceNote: card.sourceNote, sourceWordBankId: card.sourceWordBankId, sourceDate: null }],
+          items: [{ sourceNote: card.sourceNote, sourceWordBankId: card.sourceWordBankId, sourceDate: card.sourceDate }],
           dialect: card.dialect,
           deleLevel: card.deleLevelAtCreation,
         }),

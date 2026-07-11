@@ -29,6 +29,7 @@ export interface FlashcardRecord {
   source: FlashcardSource;
   sourceWordBankId: string | null;
   sourceNote: string;
+  sourceDate: string | null; // real Word Bank capture date, for leccion:: — see FlashcardSourceItem
   createdAt: string;
   confirmedAt: string | null;
   exportedAt: string | null;

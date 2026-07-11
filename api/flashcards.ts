@@ -183,6 +183,7 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
           source,
           sourceWordBankId: item.sourceWordBankId,
           sourceNote: item.sourceNote,
+          sourceDate: item.sourceDate,
         };
       }
 
@@ -201,6 +202,7 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
         source,
         sourceWordBankId: item.sourceWordBankId,
         sourceNote: item.sourceNote,
+        sourceDate: item.sourceDate,
       };
     });
 

@@ -16,6 +16,7 @@ export interface FlashcardDraftInput {
   source: FlashcardSource;
   sourceWordBankId: string | null;
   sourceNote: string;
+  sourceDate: string | null;
 }
 
 function toRecord(row: {
@@ -33,6 +34,7 @@ function toRecord(row: {
   source: unknown;
   source_word_bank_id: unknown;
   source_note: unknown;
+  source_date: unknown;
   created_at: unknown;
   confirmed_at: unknown;
   exported_at: unknown;
@@ -52,6 +54,7 @@ function toRecord(row: {
     source: row.source as FlashcardSource,
     sourceWordBankId: row.source_word_bank_id as string | null,
     sourceNote: row.source_note as string,
+    sourceDate: row.source_date as string | null,
     createdAt: row.created_at as string,
     confirmedAt: row.confirmed_at as string | null,
     exportedAt: row.exported_at as string | null,
@@ -79,6 +82,7 @@ export async function persistDraftFlashcards(inputs: FlashcardDraftInput[]): Pro
         source: input.source,
         source_word_bank_id: input.sourceWordBankId,
         source_note: input.sourceNote,
+        source_date: input.sourceDate,
       })),
     )
     .select();

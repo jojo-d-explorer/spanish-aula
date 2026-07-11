@@ -1,0 +1,12 @@
+-- Small follow-up to 0004 — see CLAUDE.md "Migration safety" and PRD §14.
+-- Run this in the Supabase SQL Editor. Back up flashcards/known_cards first
+-- (small tables, low risk, but same rule applies to every migration).
+--
+-- flashcards already has real rows from Phase 5 testing, so this is an
+-- ALTER (0004 is history now, not rewritten in place a second time).
+--
+-- Persists the real Word Bank capture date used for a card's leccion::
+-- tag (docs/ANKI_SCHEMA.md §4) so "Regenerate" (FlashcardBrowse.tsx) can
+-- reuse the original date instead of always coming back untagged. Nullable
+-- — Anki weak-item-sourced cards have no per-card date and never will.
+alter table flashcards add column source_date date;
