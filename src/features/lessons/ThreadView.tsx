@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import type { LessonLogEntry, LessonMessage } from '../../shared/lessons/types';
 import type { ErrorCategory } from '../../shared/grading/types';
 import { autoGrowTextarea } from '../../shared/ui/autoGrow';
@@ -78,7 +79,7 @@ function ThreadView({ lessonId, onPracticeCategory }: ThreadViewProps) {
       <div className="lesson-thread__messages">
         {messages.map((message) => (
           <div key={message.id} className={`lesson-msg lesson-msg--${message.role}`}>
-            <p>{message.content}</p>
+            <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         ))}
       </div>

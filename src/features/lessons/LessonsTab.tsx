@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import type { SettingsResponse } from '../../shared/settings/types';
 import type { ErrorCategory } from '../../shared/grading/types';
 import type { LessonMessage } from '../../shared/lessons/types';
@@ -126,7 +127,7 @@ function LessonsTab({ onPracticeCategory }: LessonsTabProps) {
               <p role="alert">{unsavedThread.persistError}</p>
               {unsavedThread.messages.map((message) => (
                 <div key={message.id} className={`lesson-msg lesson-msg--${message.role}`}>
-                  <p>{message.content}</p>
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
                 </div>
               ))}
             </div>

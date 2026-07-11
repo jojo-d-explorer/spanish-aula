@@ -56,9 +56,20 @@
   max-width: 80%;
 }
 
+/* Content now renders via react-markdown — real block structure (multiple
+   paragraphs, lists) instead of one pre-wrapped text blob. */
 .lesson-msg p {
   margin: 0;
-  white-space: pre-wrap;
+}
+
+.lesson-msg p + p {
+  margin-top: 8px;
+}
+
+.lesson-msg ul,
+.lesson-msg ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
 }
 
 .lesson-msg--user {
