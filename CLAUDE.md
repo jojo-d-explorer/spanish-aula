@@ -207,9 +207,13 @@ auth/billing (Phase 6) yet.
 
 ## Definitions of done
 
-- **v1 / Phase 2 / Phase 3 / Phase 4:** shipped (see repo history).
-- **Phase 3 open follow-up:** add `react-markdown` so `**bold**`/`##` render in
-  lesson bubbles; live-verify the `dele_level_at_creation` pinning invariant.
+- **v1 / Phase 2 / Phase 3 / Phase 4:** shipped (see repo history). Phase 3's
+  two follow-ups are both closed: lesson bubbles render Markdown
+  (`react-markdown`), and the `dele_level_at_creation` pinning invariant is
+  verified both statically (written once at creation in
+  `createLessonThread`, no update path exists anywhere, `api/lesson-thread.ts`
+  explicitly uses the fetched pinned value — never fresh settings — when
+  generating a reply) and against real lesson_log data.
 - **Phase 4 open follow-up (carried forward, not a Phase 5 blocker):** the
   **`known_structures` three-tier rule (§12) is unimplemented, not just
   unverified** — no settings column, no Settings UI, no prompt injection
