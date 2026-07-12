@@ -18,8 +18,18 @@ function LessonLogView({ onOpenThread }: LessonLogViewProps) {
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Failed to load lessons');
-        setLessons(data.lessons as LessonLogEntry[]);
+        const loadedLessons = data.lessons as LessonLogEntry[];
+        setLessons(loadedLessons);
         setStatus('ready');
+
+        // Background, fire-and-forget: warm the service worker's cache for
+        // every past thread, not just whichever ones get opened, so a
+        // single visit to "Past lessons" while online is enough to review
+        // all of them offline later. Errors are ignored on purpose — this
+        // is best-effort prefetching, not a user-facing operation.
+        for (const lesson of loadedLessons) {
+          fetch(`/api/lesson-thread?id=${encodeURIComponent(lesson.id)}`).catch(() => {});
+        }
       })
       .catch((err) => {
         console.error(err);
