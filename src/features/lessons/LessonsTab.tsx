@@ -116,22 +116,23 @@ function LessonsTab({ onPracticeCategory }: LessonsTabProps) {
             What would you like a lesson on? Ask about a grammar point, or a specific word or phrase you're stuck
             on.
           </p>
-          <textarea
-            value={requestText}
-            onChange={(e) => setRequestText(e.target.value)}
-            onInput={(e) => autoGrowTextarea(e.currentTarget)}
-            rows={3}
-            style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
-            placeholder="p. ej. Explícame cuándo usar el subjuntivo, o: no entiendo bien 'dejar'"
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={!isOnline || !settings || status === 'submitting' || !requestText.trim()}
-          >
-            {status === 'submitting' ? 'Starting…' : 'Start lesson'}
-          </button>
-
-          {status === 'error' && <p role="alert">{errorMessage}</p>}
+          <div className="lesson-reply-bar">
+            <textarea
+              value={requestText}
+              onChange={(e) => setRequestText(e.target.value)}
+              onInput={(e) => autoGrowTextarea(e.currentTarget)}
+              rows={3}
+              style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
+              placeholder="p. ej. Explícame cuándo usar el subjuntivo, o: no entiendo bien 'dejar'"
+            />
+            <button
+              onClick={handleSubmit}
+              disabled={!isOnline || !settings || status === 'submitting' || !requestText.trim()}
+            >
+              {status === 'submitting' ? 'Starting…' : 'Start lesson'}
+            </button>
+            {status === 'error' && <p role="alert">{errorMessage}</p>}
+          </div>
 
           {unsavedThread && (
             <div className="lesson-thread lesson-thread--unsaved">

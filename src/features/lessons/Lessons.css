@@ -6,6 +6,9 @@
   --text-muted: #898781;
   --accent: #2a78d6;
   --border: rgba(11, 11, 11, 0.1);
+  /* Clears the floating reply/submit bar (any view) so it never covers
+     trailing content — applied once here rather than per-view. */
+  padding-bottom: 88px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,6 +37,33 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* Floating input+submit row — used for both the reply box (ThreadView) and
+   the "New lesson" request box (LessonsTab). Fixed to the viewport, not
+   sticky-in-a-container, since the page itself scrolls (no boxed chat
+   window) — same technique as the mobile bottom tab bar / Word Bank FAB
+   (App.css / WordBankCapture.css). Centered to match .app's content column
+   instead of spanning the full browser width on desktop. */
+.lesson-reply-bar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, 100%);
+  bottom: 0;
+  z-index: 80;
+  background: var(--surface-1);
+  border-top: 1px solid var(--border);
+  padding: 8px 20px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .lesson-reply-bar {
+    /* Clear the mobile bottom tab bar (App.css) instead of sitting under
+       it — same offset .app already reserves for it. */
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .lesson-thread__header {

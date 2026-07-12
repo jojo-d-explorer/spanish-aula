@@ -86,19 +86,21 @@ function ThreadView({ lessonId, onPracticeCategory }: ThreadViewProps) {
         ))}
       </div>
 
-      <textarea
-        value={replyText}
-        onChange={(e) => setReplyText(e.target.value)}
-        onInput={(e) => autoGrowTextarea(e.currentTarget)}
-        rows={2}
-        style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
-        placeholder="Responde o haz otra pregunta…"
-      />
-      <button onClick={handleReply} disabled={!isOnline || replyStatus === 'sending' || !replyText.trim()}>
-        {replyStatus === 'sending' ? 'Sending…' : 'Send'}
-      </button>
-      {!isOnline && <p className="lesson-thread__meta">Offline — replying needs a connection.</p>}
-      {replyStatus === 'error' && <p role="alert">{replyError}</p>}
+      <div className="lesson-reply-bar">
+        <textarea
+          value={replyText}
+          onChange={(e) => setReplyText(e.target.value)}
+          onInput={(e) => autoGrowTextarea(e.currentTarget)}
+          rows={2}
+          style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
+          placeholder="Responde o haz otra pregunta…"
+        />
+        <button onClick={handleReply} disabled={!isOnline || replyStatus === 'sending' || !replyText.trim()}>
+          {replyStatus === 'sending' ? 'Sending…' : 'Send'}
+        </button>
+        {!isOnline && <p className="lesson-thread__meta">Offline — replying needs a connection.</p>}
+        {replyStatus === 'error' && <p role="alert">{replyError}</p>}
+      </div>
 
       {lesson.topicCategory ? (
         <button onClick={() => onPracticeCategory(lesson.topicCategory!)}>
