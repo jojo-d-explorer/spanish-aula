@@ -55,6 +55,16 @@
   margin-bottom: 20px;
 }
 
+.workbook-results__item {
+  margin-bottom: 16px;
+}
+
+.workbook-results__context {
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 0 0 6px;
+}
+
 .workbook-result--correct {
   color: var(--status-ok);
 }
