@@ -20,6 +20,16 @@
   }
 }
 
+.lessons-offline-banner {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
 .lesson-thread {
   display: flex;
   flex-direction: column;

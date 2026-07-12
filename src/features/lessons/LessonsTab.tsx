@@ -4,6 +4,7 @@ import type { SettingsResponse } from '../../shared/settings/types';
 import type { ErrorCategory } from '../../shared/grading/types';
 import type { LessonMessage } from '../../shared/lessons/types';
 import { autoGrowTextarea } from '../../shared/ui/autoGrow';
+import { useOnlineStatus } from '../../shared/ui/useOnlineStatus';
 import ThreadView from './ThreadView';
 import LessonLogView from './LessonLogView';
 import './Lessons.css';
@@ -18,6 +19,7 @@ interface LessonsTabProps {
 }
 
 function LessonsTab({ onPracticeCategory }: LessonsTabProps) {
+  const isOnline = useOnlineStatus();
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
   const [settingsError, setSettingsError] = useState('');
   const [view, setView] = useState<'new' | 'thread' | 'log'>('new');
@@ -96,6 +98,12 @@ function LessonsTab({ onPracticeCategory }: LessonsTabProps) {
 
       {settingsError && <p role="alert">{settingsError}</p>}
 
+      {!isOnline && (
+        <p role="status" className="lessons-offline-banner">
+          Offline — showing saved lessons. Starting a new lesson needs a connection.
+        </p>
+      )}
+
       {view === 'log' && <LessonLogView onOpenThread={handleOpenThread} />}
 
       {view === 'thread' && activeLessonId && (
@@ -116,7 +124,10 @@ function LessonsTab({ onPracticeCategory }: LessonsTabProps) {
             style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
             placeholder="p. ej. Explícame cuándo usar el subjuntivo, o: no entiendo bien 'dejar'"
           />
-          <button onClick={handleSubmit} disabled={!settings || status === 'submitting' || !requestText.trim()}>
+          <button
+            onClick={handleSubmit}
+            disabled={!isOnline || !settings || status === 'submitting' || !requestText.trim()}
+          >
             {status === 'submitting' ? 'Starting…' : 'Start lesson'}
           </button>
 

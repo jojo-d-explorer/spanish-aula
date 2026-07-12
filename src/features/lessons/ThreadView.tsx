@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import type { LessonLogEntry, LessonMessage } from '../../shared/lessons/types';
 import type { ErrorCategory } from '../../shared/grading/types';
 import { autoGrowTextarea } from '../../shared/ui/autoGrow';
+import { useOnlineStatus } from '../../shared/ui/useOnlineStatus';
 
 interface ThreadViewProps {
   lessonId: string;
@@ -14,6 +15,7 @@ function topicLabel(lesson: Pick<LessonLogEntry, 'topicCategory' | 'topicFreefor
 }
 
 function ThreadView({ lessonId, onPracticeCategory }: ThreadViewProps) {
+  const isOnline = useOnlineStatus();
   const [lesson, setLesson] = useState<LessonLogEntry | null>(null);
   const [messages, setMessages] = useState<LessonMessage[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -92,9 +94,10 @@ function ThreadView({ lessonId, onPracticeCategory }: ThreadViewProps) {
         style={{ width: '100%', overflow: 'hidden', resize: 'none' }}
         placeholder="Responde o haz otra pregunta…"
       />
-      <button onClick={handleReply} disabled={replyStatus === 'sending' || !replyText.trim()}>
+      <button onClick={handleReply} disabled={!isOnline || replyStatus === 'sending' || !replyText.trim()}>
         {replyStatus === 'sending' ? 'Sending…' : 'Send'}
       </button>
+      {!isOnline && <p className="lesson-thread__meta">Offline — replying needs a connection.</p>}
       {replyStatus === 'error' && <p role="alert">{replyError}</p>}
 
       {lesson.topicCategory ? (
