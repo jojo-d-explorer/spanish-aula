@@ -115,7 +115,7 @@ under Project → Settings → Environment Variables.
     /db                # Supabase client + queries (server-only, never imported by the frontend)
 /api                   # Vercel serverless functions (proxy the Anthropic API + token metering)
 /docs
-  PRD.md               # full spec, phase-by-phase
+  PRD.md                # full spec, phase-by-phase
   ANKI_SCHEMA.md        # the real Anki deck contract Flashcards generates against
 /supabase/migrations    # versioned schema changes, applied manually via the SQL Editor
 ```
@@ -294,10 +294,8 @@ Anki import. What's still genuinely open:
 - **Entry regrade** — fixing an entry whose grading came back broken
   currently means resubmitting, which duplicates the row. Documented, not
   built; needs its own small "browse past entries" view in History first.
-- A couple of small Phase 3 follow-ups (Markdown rendering in Lesson
-  bubbles, live-verifying the level-pinning invariant) and a mobile
-  keyboard-behavior check that genuinely needs a real phone, not a
-  simulator.
+- A mobile keyboard-behavior check in Lessons that genuinely needs a real
+  phone, not a simulator.
 - Phase 6 (multi-tenancy, monetization) stays parked on purpose — the
   token-metering groundwork is already in place for whenever that's worth
   revisiting.
