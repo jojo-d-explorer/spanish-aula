@@ -61,10 +61,26 @@ function App() {
         </button>
       </nav>
       <main>
-        {activeTab === 'writing' && <WritingTab onPracticeCategory={handlePracticeCategory} />}
-        {activeTab === 'lessons' && <LessonsTab onPracticeCategory={handlePracticeCategory} />}
-        {activeTab === 'workbook' && <WorkbookTab seed={workbookSeed} onSeedConsumed={clearWorkbookSeed} />}
-        {activeTab === 'flashcards' && <FlashcardsTab />}
+        {/* All four tabs stay mounted at all times — display:none on the
+            inactive ones, not conditional mounting — so switching tabs
+            never wipes in-progress state (a half-answered Workbook
+            session, a half-typed Lessons request, an in-progress Writing
+            entry). Tradeoff: every tab's mount-time fetch fires together
+            on first load instead of lazily per-visit; a non-issue at this
+            app's scale. WordBankCapture (below) already followed this
+            always-mounted pattern. */}
+        <div style={{ display: activeTab === 'writing' ? 'block' : 'none' }}>
+          <WritingTab onPracticeCategory={handlePracticeCategory} />
+        </div>
+        <div style={{ display: activeTab === 'lessons' ? 'block' : 'none' }}>
+          <LessonsTab onPracticeCategory={handlePracticeCategory} />
+        </div>
+        <div style={{ display: activeTab === 'workbook' ? 'block' : 'none' }}>
+          <WorkbookTab seed={workbookSeed} onSeedConsumed={clearWorkbookSeed} />
+        </div>
+        <div style={{ display: activeTab === 'flashcards' ? 'block' : 'none' }}>
+          <FlashcardsTab />
+        </div>
       </main>
       <WordBankCapture sourceTab={activeTab} />
     </div>
