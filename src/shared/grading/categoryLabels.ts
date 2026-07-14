@@ -1,4 +1,4 @@
-import type { ErrorCategory } from './types';
+import type { ErrorCategory, SubscoreKey } from './types';
 
 // Human-readable labels for the frozen error taxonomy (types.ts) — one
 // place, imported everywhere a category gets shown to the learner, instead
@@ -35,4 +35,18 @@ export const CATEGORY_LABELS: Record<ErrorCategory, string> = {
 
 export function formatCategoryLabel(category: ErrorCategory): string {
   return CATEGORY_LABELS[category] ?? category;
+}
+
+// Moved from HistoryView.tsx, which had this defined locally — Writing's
+// feedback view needs the exact same labels now, so it's shared, not copied.
+export const SUBSCORE_LABELS: Record<SubscoreKey, string> = {
+  syntactic_complexity: 'Syntax',
+  verbal_range: 'Verbal range',
+  lexical_sophistication: 'Lexicon',
+  cohesion: 'Cohesion',
+  ambition: 'Ambition',
+};
+
+export function formatSubscoreLabel(key: SubscoreKey): string {
+  return SUBSCORE_LABELS[key] ?? key;
 }

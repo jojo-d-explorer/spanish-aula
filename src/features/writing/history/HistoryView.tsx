@@ -1,18 +1,9 @@
 import { useEffect, useState } from 'react';
 import Sparkline from './Sparkline';
 import type { HistoryTrends, CategoryTrend, SophisticationWeeklyPoint } from '../../../shared/history/trends';
-import { SUBSCORE_KEYS, type SubscoreKey } from '../../../shared/grading/types';
+import { SUBSCORE_KEYS } from '../../../shared/grading/types';
+import { SUBSCORE_LABELS } from '../../../shared/grading/categoryLabels';
 import './HistoryView.css';
-
-// Every key in SUBSCORE_KEYS must have a label here — TS enforces this Record
-// covers all of them, so adding a subscore without a label fails to compile.
-const SUBSCORE_LABELS: Record<SubscoreKey, string> = {
-  syntactic_complexity: 'Syntax',
-  verbal_range: 'Verbal range',
-  lexical_sophistication: 'Lexicon',
-  cohesion: 'Cohesion',
-  ambition: 'Ambition',
-};
 
 function CategoryCard({ trend }: { trend: CategoryTrend }) {
   if (trend.weeks.length === 0) return null;

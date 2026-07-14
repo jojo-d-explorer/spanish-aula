@@ -1,12 +1,47 @@
 import { useEffect, useState } from 'react';
 import { generateWritingPrompt, type WritingPrompt, type DeleLevel, DELE_LEVEL_OPTIONS } from '../../shared/prompts/writingPrompt';
-import type { GradingContract, ErrorCategory } from '../../shared/grading/types';
+import type { GradingContract, ErrorCategory, AccuracyObservation, CategorySummaryEntry } from '../../shared/grading/types';
 import type { SettingsResponse } from '../../shared/settings/types';
 import { autoGrowTextarea } from '../../shared/ui/autoGrow';
+import { formatCategoryLabel, formatSubscoreLabel } from '../../shared/grading/categoryLabels';
 import HistoryView from './history/HistoryView';
+import './Writing.css';
 
 interface WritingTabProps {
   onPracticeCategory: (category: ErrorCategory) => void;
+}
+
+interface CategoryDiagnosis {
+  category: ErrorCategory;
+  summary: CategorySummaryEntry;
+  mistakes: AccuracyObservation[];
+}
+
+// category_summary is already curated to "only categories with an
+// obligatory context in this entry" (rubric.ts) — group the individual
+// observations under those same keys rather than re-deriving anything.
+function buildDiagnosis(feedback: GradingContract): { withMistakes: CategoryDiagnosis[]; allCorrect: CategoryDiagnosis[] } {
+  const observationsByCategory = new Map<string, AccuracyObservation[]>();
+  for (const obs of feedback.accuracy.observations) {
+    const list = observationsByCategory.get(obs.category) ?? [];
+    list.push(obs);
+    observationsByCategory.set(obs.category, list);
+  }
+
+  const diagnoses: CategoryDiagnosis[] = Object.entries(feedback.accuracy.category_summary).map(
+    ([category, summary]) => ({
+      category: category as ErrorCategory,
+      summary: summary!,
+      // Only the mistakes are individually interesting here — the ratio in
+      // the header already accounts for what the learner got right.
+      mistakes: (observationsByCategory.get(category) ?? []).filter((obs) => !obs.correct),
+    }),
+  );
+
+  return {
+    withMistakes: diagnoses.filter((d) => d.mistakes.length > 0),
+    allCorrect: diagnoses.filter((d) => d.mistakes.length === 0),
+  };
 }
 
 function WritingTab({ onPracticeCategory }: WritingTabProps) {
@@ -171,35 +206,72 @@ function WritingTab({ onPracticeCategory }: WritingTabProps) {
           {status === 'error' && <p role="alert">{errorMessage}</p>}
 
           {feedback && (
-            <div>
-              <h3>Feedback (Dra. Restrepo)</h3>
-              <p>{feedback.feedback_prose}</p>
+            <div className="writing-feedback">
+              <div className="writing-feedback__prose">
+                <h3>Feedback (Dra. Restrepo)</h3>
+                <p>{feedback.feedback_prose}</p>
+              </div>
 
-              <h4>Corrected text</h4>
-              <p>{feedback.corrected_text}</p>
+              <div className="writing-feedback__corrected">
+                <h4>Corrected text</h4>
+                <p>{feedback.corrected_text}</p>
+              </div>
 
-              <h4>Sophistication: {feedback.sophistication.overall}/10</h4>
-              <ul>
-                {Object.entries(feedback.sophistication.subscores).map(([key, value]) => (
-                  <li key={key}>
-                    {key}: {value}/10
-                  </li>
-                ))}
-              </ul>
+              <div className="writing-diagnosis">
+                <h4 className="writing-diagnosis__heading">Diagnosis by category</h4>
+                {(() => {
+                  const { withMistakes, allCorrect } = buildDiagnosis(feedback);
+                  return (
+                    <>
+                      {withMistakes.map((d) => (
+                        <div key={d.category} className="writing-category-card">
+                          <div className="writing-category-card__header">
+                            <span className="writing-category-card__label">{formatCategoryLabel(d.category)}</span>
+                            <span className="writing-category-card__ratio">
+                              {d.summary.correct}/{d.summary.obligatory_contexts}
+                            </span>
+                          </div>
+                          <ul className="writing-category-card__mistakes">
+                            {d.mistakes.map((m, i) => (
+                              <li key={i} className="writing-mistake">
+                                <span className="writing-mistake__excerpt">{m.excerpt}</span>
+                                <span className="writing-mistake__arrow"> → </span>
+                                <span className="writing-mistake__correction">{m.correction}</span>
+                                {m.note && <p className="writing-mistake__note">{m.note}</p>}
+                              </li>
+                            ))}
+                          </ul>
+                          <button onClick={() => onPracticeCategory(d.category)}>Practice in Workbook →</button>
+                        </div>
+                      ))}
+                      {allCorrect.length > 0 && (
+                        <p className="writing-feedback__all-correct">
+                          ✓ Also solid: {allCorrect.map((d) => formatCategoryLabel(d.category)).join(', ')}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
 
-              <h4>Accuracy by category</h4>
-              <ul>
-                {Object.entries(feedback.accuracy.category_summary).map(([category, summary]) => (
-                  <li key={category}>
-                    {category}: {summary!.correct}/{summary!.obligatory_contexts}{' '}
-                    <button onClick={() => onPracticeCategory(category as ErrorCategory)}>
-                      Practice in Workbook →
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="writing-feedback__stats">
+                <div className="writing-stat">
+                  <div className="writing-stat__label">Sophistication</div>
+                  <div className="writing-stat__value">{feedback.sophistication.overall}/10</div>
+                  <ul className="writing-stat__subscores">
+                    {Object.entries(feedback.sophistication.subscores).map(([key, value]) => (
+                      <li key={key}>
+                        {formatSubscoreLabel(key as keyof typeof feedback.sophistication.subscores)}: {value}/10
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="writing-stat">
+                  <div className="writing-stat__label">Estimated DELE level</div>
+                  <div className="writing-stat__value">{feedback.dele_level_estimate}</div>
+                </div>
+              </div>
 
-              <h4>Estimated DELE level: {feedback.dele_level_estimate}</h4>
               {saveWarning && <p role="alert">{saveWarning}</p>}
             </div>
           )}

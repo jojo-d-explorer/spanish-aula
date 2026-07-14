@@ -1,0 +1,163 @@
+.writing-feedback {
+  --surface-1: #fcfcfb;
+  --surface-2: #f1f0ec;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --status-ok: #2f9e44;
+  --status-critical: #d03b3b;
+  --border: rgba(11, 11, 11, 0.1);
+  text-align: left;
+}
+
+@media (prefers-color-scheme: dark) {
+  .writing-feedback {
+    --surface-1: #1a1a19;
+    --surface-2: #232320;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --status-ok: #51cf66;
+    --status-critical: #d03b3b;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.writing-feedback__prose {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.writing-feedback__prose h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.writing-feedback__prose p {
+  margin: 0;
+  /* feedback_prose is plain generated text, not markdown — real newlines
+     from the model should still show as line/paragraph breaks. */
+  white-space: pre-wrap;
+}
+
+.writing-feedback__corrected {
+  margin-bottom: 20px;
+}
+
+.writing-feedback__corrected h4,
+.writing-diagnosis__heading {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.writing-feedback__corrected p {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.writing-diagnosis {
+  margin-bottom: 20px;
+}
+
+.writing-category-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--status-critical);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.writing-category-card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.writing-category-card__label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.writing-category-card__ratio {
+  font-size: 13px;
+  color: var(--status-critical);
+  white-space: nowrap;
+}
+
+.writing-category-card__mistakes {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.writing-mistake {
+  font-size: 14px;
+}
+
+.writing-mistake__excerpt {
+  color: var(--status-critical);
+  text-decoration: line-through;
+}
+
+.writing-mistake__arrow {
+  color: var(--text-muted);
+}
+
+.writing-mistake__correction {
+  color: var(--status-ok);
+  font-weight: 600;
+}
+
+.writing-mistake__note {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.writing-feedback__all-correct {
+  font-size: 13px;
+  color: var(--status-ok);
+  margin: 4px 0 0;
+}
+
+.writing-feedback__stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.writing-stat__label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.writing-stat__value {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.writing-stat__subscores {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
