@@ -1,4 +1,6 @@
 import type { WorkbookSession, WorkbookGradeResponse, ExerciseItem, ObjectiveGradeResult } from '../../shared/workbook/types';
+import type { ErrorCategory } from '../../shared/grading/types';
+import { formatCategoryLabel } from '../../shared/grading/categoryLabels';
 
 interface ResultsViewProps {
   response: WorkbookGradeResponse;
@@ -57,6 +59,7 @@ function ResultsView({ response, session, onNewSession }: ResultsViewProps) {
             const context = itemContext(item);
             return (
               <div key={group.itemId} className="workbook-results__item">
+                {item && <span className="workbook-category-badge">{formatCategoryLabel(item.category)}</span>}
                 {context && <p className="workbook-results__context">{context}</p>}
                 <ul>
                   {group.results.map((r, i) => {
@@ -96,7 +99,7 @@ function ResultsView({ response, session, onNewSession }: ResultsViewProps) {
               <ul>
                 {Object.entries(r.grading.accuracy.category_summary).map(([category, summary]) => (
                   <li key={category}>
-                    {category}: {summary!.correct}/{summary!.obligatory_contexts}
+                    {formatCategoryLabel(category as ErrorCategory)}: {summary!.correct}/{summary!.obligatory_contexts}
                   </li>
                 ))}
               </ul>
