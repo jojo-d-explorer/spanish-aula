@@ -112,6 +112,55 @@
   padding-left: 20px;
 }
 
+/* Markdown headings must NOT inherit index.css's page-title h1/h2 styles
+   (56px/24px, 32px/8px margins) — that's what "margins are all over"
+   turned out to be. Relative sizing (not a fixed px) so it stays modestly
+   bigger than body text regardless of the inherited root font-size
+   (18px desktop / 16px mobile), never a page-title-scale jump. */
+.lesson-msg h1,
+.lesson-msg h2,
+.lesson-msg h3,
+.lesson-msg h4,
+.lesson-msg h5,
+.lesson-msg h6 {
+  margin: 10px 0 4px;
+  font-size: 1.05em;
+  font-weight: 700;
+  line-height: 1.3;
+  color: inherit;
+}
+
+.lesson-msg h1:first-child,
+.lesson-msg h2:first-child,
+.lesson-msg h3:first-child,
+.lesson-msg h4:first-child {
+  margin-top: 0;
+}
+
+.lesson-msg strong {
+  font-weight: 700;
+}
+
+.lesson-msg code {
+  background: rgba(0, 0, 0, 0.08);
+  color: inherit;
+  font-family: var(--mono);
+  font-size: 0.9em;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.lesson-msg--user code {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.lesson-msg blockquote {
+  margin: 8px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid currentColor;
+  opacity: 0.85;
+}
+
 .lesson-msg--user {
   align-self: flex-end;
   background: var(--accent);
