@@ -56,13 +56,28 @@
 }
 
 .workbook-results__item {
-  margin-bottom: 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--status-critical);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+}
+
+.workbook-results__item--all-correct {
+  border-left-color: var(--status-ok);
 }
 
 .workbook-results__context {
   color: var(--text-secondary);
   font-style: italic;
   margin: 0 0 6px;
+}
+
+.workbook-item__rationale {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 8px;
 }
 
 .workbook-category-badge {
@@ -78,12 +93,50 @@
   margin-bottom: 6px;
 }
 
-.workbook-result--correct {
+/* Replaces the old bare <ul> of objective-answer results — same card
+   language as Writing's diagnosis cards (Writing.css
+   .writing-category-card__mistakes): no bullets, an excerpt → correction
+   pattern for wrong answers instead. */
+.workbook-results__answers {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workbook-answer-row {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.workbook-answer__cue {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.workbook-answer__submitted--correct {
   color: var(--status-ok);
 }
 
-.workbook-result--incorrect {
+.workbook-answer__submitted--wrong {
   color: var(--status-critical);
+  text-decoration: line-through;
+}
+
+.workbook-answer__submitted--blank {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.workbook-answer__arrow {
+  color: var(--text-muted);
+}
+
+.workbook-answer__correct {
+  color: var(--status-ok);
+  font-weight: 600;
 }
 
 .workbook-result__note {
@@ -97,6 +150,16 @@
   border-radius: 8px;
   padding: 12px 16px;
   margin-bottom: 12px;
+}
+
+/* Replaces the old bare <ul> of category_summary ratios — same pill
+   treatment as .workbook-category-badge, in a wrapping row instead of a
+   bulleted list. */
+.workbook-results__category-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .workbook-anki-upload__list {

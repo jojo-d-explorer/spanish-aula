@@ -57,22 +57,38 @@ function ResultsView({ response, session, onNewSession }: ResultsViewProps) {
           {groupedObjective.map((group) => {
             const item = itemsById.get(group.itemId);
             const context = itemContext(item);
+            const allCorrect = group.results.every((r) => r.correct);
             return (
-              <div key={group.itemId} className="workbook-results__item">
+              <div
+                key={group.itemId}
+                className={`workbook-results__item${allCorrect ? ' workbook-results__item--all-correct' : ''}`}
+              >
                 {item && <span className="workbook-category-badge">{formatCategoryLabel(item.category)}</span>}
+                {item?.rationale && <p className="workbook-item__rationale">{item.rationale}</p>}
                 {context && <p className="workbook-results__context">{context}</p>}
-                <ul>
+                <ul className="workbook-results__answers">
                   {group.results.map((r, i) => {
                     const cue = blankCue(item, r.blankId);
                     return (
-                      <li
-                        key={`${r.itemId}-${r.blankId ?? i}`}
-                        className={r.correct ? 'workbook-result--correct' : 'workbook-result--incorrect'}
-                      >
-                        {cue && <strong>({cue}) </strong>}
-                        <span>your answer: {r.submitted || '(blank)'}</span>
-                        {!r.correct && <span> — correct: {r.correctAnswer}</span>}
-                        <span> {r.correct ? '✓' : '✗'}</span>
+                      <li key={`${r.itemId}-${r.blankId ?? i}`} className="workbook-answer-row">
+                        {cue && <span className="workbook-answer__cue">({cue}) </span>}
+                        {r.correct ? (
+                          <span className="workbook-answer__submitted--correct">{r.submitted} ✓</span>
+                        ) : (
+                          <>
+                            <span
+                              className={
+                                r.submitted
+                                  ? 'workbook-answer__submitted--wrong'
+                                  : 'workbook-answer__submitted--blank'
+                              }
+                            >
+                              {r.submitted || '(no answer)'}
+                            </span>
+                            <span className="workbook-answer__arrow"> → </span>
+                            <span className="workbook-answer__correct">{r.correctAnswer}</span>
+                          </>
+                        )}
                         {r.note && <p className="workbook-result__note">{r.note}</p>}
                       </li>
                     );
@@ -87,24 +103,28 @@ function ResultsView({ response, session, onNewSession }: ResultsViewProps) {
       {response.sentenceProduction.length > 0 && (
         <div className="workbook-results__section">
           <h3>Sentence production</h3>
-          {response.sentenceProduction.map((r) => (
-            <div key={r.itemId} className="workbook-results__sentence">
-              <p>
-                <strong>Your answer:</strong> {r.submitted}
-              </p>
-              <p>
-                <strong>Corrected:</strong> {r.grading.corrected_text}
-              </p>
-              <p>{r.grading.feedback_prose}</p>
-              <ul>
-                {Object.entries(r.grading.accuracy.category_summary).map(([category, summary]) => (
-                  <li key={category}>
-                    {formatCategoryLabel(category as ErrorCategory)}: {summary!.correct}/{summary!.obligatory_contexts}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {response.sentenceProduction.map((r) => {
+            const item = itemsById.get(r.itemId);
+            return (
+              <div key={r.itemId} className="workbook-results__sentence">
+                {item?.rationale && <p className="workbook-item__rationale">{item.rationale}</p>}
+                <p>
+                  <strong>Your answer:</strong> {r.submitted}
+                </p>
+                <p>
+                  <strong>Corrected:</strong> {r.grading.corrected_text}
+                </p>
+                <p>{r.grading.feedback_prose}</p>
+                <div className="workbook-results__category-summary">
+                  {Object.entries(r.grading.accuracy.category_summary).map(([category, summary]) => (
+                    <span key={category} className="workbook-category-badge">
+                      {formatCategoryLabel(category as ErrorCategory)}: {summary!.correct}/{summary!.obligatory_contexts}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
