@@ -44,7 +44,10 @@ function WordBankCapture({ sourceTab }: WordBankCaptureProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed to save word');
       setStatus('saved');
-      setTimeout(() => setOpen(false), 800);
+      setTimeout(() => {
+        setOpen(false);
+        reset();
+      }, 800);
     } catch (err) {
       console.error(err);
       setErrorMessage(err instanceof Error ? err.message : 'Something went wrong.');
