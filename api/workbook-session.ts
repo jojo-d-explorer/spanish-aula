@@ -18,11 +18,16 @@ import { requireAccess } from '../src/shared/auth/accessGate.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// Fixed default mix — one cloze passage is the centerpiece (PRD §10.2),
-// conjugation/gap-fill give volume drilling, one sentence-production item
-// produces the richest error-log signal. Tunable, not PRD-pinned.
+// Fixed default mix — cloze passages are the centerpiece (PRD §10.2) and,
+// since the blank-count rule (rubric.ts) now routes all genuinely multi-blank/
+// complex sentences through contextual_cloze exclusively (conjugation_recall/
+// gap_fill are strictly single-blank), two passages instead of one keeps
+// session difficulty from dropping now that those types can't carry
+// multi-verb complexity themselves. conjugation/gap-fill give volume
+// drilling, one sentence-production item produces the richest error-log
+// signal. Tunable, not PRD-pinned.
 const DEFAULT_ITEM_COUNTS: Record<string, number> = {
-  contextual_cloze: 1,
+  contextual_cloze: 2,
   conjugation_recall: 2,
   gap_fill: 2,
   sentence_production: 1,
@@ -200,7 +205,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const rawItems = (genToolUse.input as { items: RawGeneratedItem[] }).items;
-    const items: ExerciseItem[] = rawItems.map((raw) => toExerciseItem(raw, source.category));
+    const items: ExerciseItem[] = rawItems
+      .map((raw) => toExerciseItem(raw, source.category))
+      .filter((item) => {
+        // Prompt-level instruction (rubric.ts "Blank-count rule") isn't
+        // reliably followed by Haiku — confirmed live: it still sometimes
+        // writes a second blank into a conjugation_recall/gap_fill sentence,
+        // which only has one answer field and renders one input box. Drop
+        // rather than present an ungradeable item; a session with one fewer
+        // item beats a broken one.
+        if (item.type !== 'conjugation_recall' && item.type !== 'gap_fill') return true;
+        const blankCount = (item.sentence.match(/_{2,}/g) ?? []).length;
+        if (blankCount > 1) {
+          console.warn(`Dropping malformed ${item.type} item — ${blankCount} blanks but one answer field:`, item.sentence);
+          return false;
+        }
+        return true;
+      });
 
     const session: WorkbookSession = { source, dialect, deleLevel, items };
     res.status(200).json({ session });

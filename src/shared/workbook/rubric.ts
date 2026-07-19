@@ -32,6 +32,29 @@ in the user message.
 
 Never generate a matching-type exercise — it is explicitly out of scope.
 
+**Blank-count rule (strict):** \`conjugation_recall\` and \`gap_fill\` each have
+exactly one \`answer\` field and render exactly one input box — their
+\`sentence\` must therefore contain exactly one blank marker. Never write a
+second blank into a \`conjugation_recall\`/\`gap_fill\` sentence (e.g. two verbs,
+a verb + a pronoun, a two-part expression tested separately) — the learner
+would have nowhere to enter the second answer. If an item genuinely needs more
+than one blank, generate it as \`contextual_cloze\` instead, where every blank
+gets its own \`blanks\` entry, its own cue, and its own input — this applies
+even to a single-sentence passage; \`contextual_cloze\` does not require
+multiple sentences, only multiple blanks. Mark every blank with three
+underscores (\`___\`); in \`contextual_cloze\`, the blanks marked in \`passage\`
+must correspond 1:1, in left-to-right order, with the entries in \`blanks\`.
+
+This mistake is common specifically for comparison categories like
+preterite_vs_imperfect, where a natural sentence wants two verbs. WRONG (do
+NOT do this — two blanks in a \`conjugation_recall\`):
+  type: conjugation_recall, sentence: "Cuando ___ pequeño, siempre ___
+  chocolate caliente." — broken, only one answer field exists for two blanks.
+RIGHT (the same content as \`contextual_cloze\` instead):
+  type: contextual_cloze, passage: "Cuando ___ pequeño, siempre ___ chocolate
+  caliente.", blanks: [{cue: "ser", answer: "era"}, {cue: "tomar", answer:
+  "tomaba"}].
+
 ## Language rule for the \`rationale\` field only
 
 Every item's \`rationale\` (a short note on why this drills the target
