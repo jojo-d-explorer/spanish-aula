@@ -161,6 +161,40 @@
   opacity: 0.85;
 }
 
+/* Conjugation tables (remark-gfm pipe tables) — bubbles are max-width: 80%,
+   so a 6-column person table (yo/tú/él/nosotros/vosotros/ellos) needs its
+   own horizontal scroll rather than squeezing or wrapping cells.
+   display: block is what makes overflow-x apply to a <table>. */
+.lesson-msg table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 8px 0 0;
+  font-size: 0.9em;
+}
+
+.lesson-msg th,
+.lesson-msg td {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  padding: 4px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.lesson-msg th {
+  background: rgba(0, 0, 0, 0.06);
+  font-weight: 700;
+}
+
+.lesson-msg--user th,
+.lesson-msg--user td {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.lesson-msg--user th {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 .lesson-msg--user {
   align-self: flex-end;
   background: var(--accent);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { SettingsResponse } from '../../shared/settings/types';
 import type { ErrorCategory } from '../../shared/grading/types';
 import type { LessonMessage } from '../../shared/lessons/types';
@@ -139,7 +140,7 @@ function LessonsTab({ onPracticeCategory }: LessonsTabProps) {
               <p role="alert">{unsavedThread.persistError}</p>
               {unsavedThread.messages.map((message) => (
                 <div key={message.id} className={`lesson-msg lesson-msg--${message.role}`}>
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                 </div>
               ))}
             </div>
