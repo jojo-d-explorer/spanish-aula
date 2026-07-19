@@ -47,6 +47,17 @@ function isHttps(req: VercelRequest): boolean {
   return req.headers['x-forwarded-proto'] === 'https';
 }
 
+// Vercel sets x-forwarded-for to "client, proxy1, proxy2, ..."; the first
+// entry is the real client. Used to key login-attempt rate limiting
+// (api/auth-login.ts) — falls back to a constant so a missing header still
+// rate-limits (as one shared bucket) instead of silently skipping the check.
+export function getClientIp(req: VercelRequest): string {
+  const header = req.headers['x-forwarded-for'];
+  const value = Array.isArray(header) ? header[0] : header;
+  const first = value?.split(',')[0]?.trim();
+  return first || 'unknown';
+}
+
 export function buildSessionCookieHeader(req: VercelRequest): string {
   const expiresAt = Date.now() + SESSION_TTL_MS;
   const payload = String(expiresAt);

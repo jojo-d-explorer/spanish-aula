@@ -148,7 +148,8 @@ auth/billing (Phase 6) yet.
   `dele_level_at_creation`.**
 - **Migration safety, non-negotiable:** back up Supabase data, versioned
   migration file, test against a copy of real production data. Applies to the
-  `source_tab` column and the `usage_log` table added this phase.
+  `source_tab` column, the `usage_log` table, and the `login_attempts` table
+  (0006, access-gate rate limiting).
 - **Do not build Phase 6 (auth, billing, tiers, BYO-key, onboarding).** Only
   the metering groundwork (above) is in scope now.
 - **Temporary access-code gate — not Phase 6 auth.** The live deployment is
@@ -159,6 +160,14 @@ auth/billing (Phase 6) yet.
   it has no accounts, no per-user anything, and is explicitly not the
   multi-user system in PRD §11. Trivial to rip out later without touching
   any Phase 0-5 feature code.
+  - **`api/auth-login.ts` is rate-limited** (5 failed attempts / 15 min per
+    IP, backed by the `login_attempts` table) — it's the only endpoint that
+    takes a raw guess at `APP_ACCESS_CODE`, so it's the only one that needs
+    it. `requireAccess()` itself only validates an already-issued signed
+    cookie and does **not** rate-limit — forging a valid cookie isn't a
+    brute-forceable surface, so gating every route's DB with a rate-limit
+    check would add latency for no real security benefit. See
+    `src/shared/db/loginAttempts.ts`.
 
 ## Suggested structure (feature-first)
 
