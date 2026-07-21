@@ -1,8 +1,8 @@
 # PRD — Spanish Acquisition App ("working title: *Aula*")
 
-A single-user (for now), research-backed Spanish practice web app that also
-serves as a full-stack portfolio piece. Four interconnected tools around one
-spine: a persistent, categorized error log that turns four tabs into one system.
+A single-user, research-backed Spanish practice web app that also serves as a
+full-stack portfolio piece. Four interconnected tools around one spine: a
+persistent, categorized error log that turns four tabs into one system.
 
 ---
 
@@ -10,87 +10,79 @@ spine: a persistent, categorized error log that turns four tabs into one system.
 
 Four tabs, deployed as one responsive web app usable on phone, iPad, and desktop:
 
-1. **Writing** — prompt generator (or free journaling) + dual-axis graded
-   feedback.
-2. **Workbook** — research-backed exercise generator (contextual cloze,
-   conjugation recall, sentence production, isolated gap-fill), targeting
-   *your* weak categories.
-3. **Flashcards** — generate Anki-import cards in your exact note-type schema
-   (with dedup against the master list); ingest an Anki export to detect weak
-   items.
-4. **Lessons** — on-demand, conversational e-lectures on a tense/topic; can
-   seed from the error log.
+1. **Writing** — prompt generator + dual-axis graded feedback (v1 target).
+2. **Workbook** — research-backed exercise generator (cloze, conjugation recall,
+   sentence production, matching), targeting *your* weak categories.
+3. **Flashcards** — generate Anki-import TSV in your exact note-type schema;
+   ingest an Anki export to detect weak items.
+4. **Lessons** — on-demand e-lectures on a tense/topic; can seed from the error log.
 
 **The spine.** Every tab reads from and writes to a persistent, categorized
 **error log**. Writing and workbook mistakes are tagged by category; the log
 drives lesson/workbook targeting and flashcard minting; a category crossing an
-error threshold escalates to a targeted micro-lesson. Progress = that error
-rate falling.
+error threshold escalates to a targeted micro-lesson (per the Persona doc's
+"3 repeats → micro-lesson" commitment). Progress = that error rate falling.
 
-A second, sibling capture mechanism — the **Word Bank** — lets any word or
+A second, sibling capture mechanism — the **Word Bank** (§8) — lets any word or
 phrase be captured from anywhere in the app, independent of the error log, as
 raw material for the Flashcard tab.
-
-A third, lightweight signal — **known structures** (§2, §12) — constrains
-what grammar generated content is allowed to use incidentally, so exercises
-and prompts never spring an untaught structure on the learner.
 
 ---
 
 ## 2. Non-negotiable design principles
 
 - **Research-backed, not busywork.** Every exercise type maps to a named
-  principle (retrieval practice, generation effect, interleaving, cloze
-  deletion, elaborative interrogation), surfaced in the README.
+  principle (retrieval practice, generation effect, interleaving, cloze deletion,
+  elaborative interrogation). Surfaced in the README as the piece's point of view.
 - **DELE-pegged.** Difficulty and rubrics calibrated to DELE descriptors.
-  Level is a **parameter** (A2 → B1 → B2), not hardcoded.
-- **Dialect-parameterized.** `dialect` is a single parameter injected into
-  every prompt. Default = **Mexican**; note Rioplatense divergences where
-  relevant.
-- **Dual-axis feedback.** Accuracy and sophistication scored **independently**,
-  so reaching for hard structures is rewarded even when imperfect. Warm about
-  *content*, rigorous about *form*.
-- **Avoidance-proof progress metric.** Accuracy = **correct ÷ obligatory
-  contexts** per category, never raw error counts.
-- **Raw data is the only source of truth.** No tab writes retroactive edits to
-  `error_observations` to make a metric look better; the escalation flag clears
-  only through the trailing window, never a manual reset.
-- **Lean over clever.** Prefer extending an existing mechanism over building new
-  infrastructure. The app should scale with the learner's rising level without
-  accumulating complexity.
-- **Explicit vs. implicit knowledge get different language treatment, going
-  forward from Phase 4.** Input, examples, and prompts stay in Spanish;
-  declarative "why" explanations and contrastive notes are delivered in
-  English at lower levels, shifting toward Spanish as level rises. Applies to
-  new Workbook rationale text; shipped Lessons is not being retrofitted.
-- **Metered from the proxy, single-user today, multi-tenant-ready.** Every model
-  call already flows through the serverless proxy; that proxy logs tokens-in /
-  tokens-out per call from day one (§6.1). This costs nothing while single-user
-  but is the load-bearing foundation for any future pricing, usage caps, or
-  "know your own cost" feature (§11). Auth/billing/tiers are **not** built yet.
-- **DELE level is a coarse proxy, not a syllabus.** `dele_level` alone does
-  not guarantee a structure is one *this* learner has actually been taught. All
-  generated content must additionally respect `known_structures` (§12) — see
-  the three-tier rule there for exactly how strict this is per content type.
+  Current level is a **parameter** (A2 now → B1 → B2), not hardcoded.
+- **Dialect-parameterized.** `dialect` is a single parameter injected into every
+  prompt. Default = **Mexican**; grader notes Rioplatense divergences where
+  relevant. Future dialect-switching is a config change, not a rewrite.
+- **Dual-axis feedback.** Accuracy (every error corrected) and sophistication
+  (1–10 linguistic ambition) are scored **independently**, so reaching for hard
+  structures is rewarded even when the attempt is imperfect. Feedback tone is
+  warm and non-critical about *content*, rigorous about *form*.
+- **Avoidance-proof progress metric.** Accuracy is measured as
+  **correct ÷ obligatory contexts** per category, never raw error counts.
 
 ---
 
-## 3. Writing tab (shipped)
+## 3. v1 scope — Writing tab only, deployed, on your phone
 
-Prompt-generated **or** free-journal entries go through one grading contract
-(§4) and feed the same error log. See CLAUDE.md for the full shipped flow.
-Prompt generation respects `known_structures` (§12) **strictly, with no
-exception** — unlike Workbook's cloze narratives (§12.3), a Writing prompt has
-no narrative-necessity carve-out.
+v1 is a genuinely usable daily study tool *and* a legitimate portfolio slice.
+Ship and deploy this **before** building tabs 2–4, so the app returns Spanish
+practice within a week or two and the rest is built around a working tool.
+
+**Status: shipped.**
+
+### v1 user flow
+1. Open app → **Writing** tab → tap **Generate prompt**.
+2. Prompt appears, calibrated to current DELE level, drawn from your interest
+   rotation (wine, cinema, tennis, jazz, art, fitness, VC/finance) + parenting.
+3. Write a Spanish entry in the box. Submit.
+4. Grader returns, in the **Dra. Restrepo** voice:
+   - corrected text,
+   - per-category accuracy observations (with obligatory-context accounting),
+   - sophistication score + subscores,
+   - a warm, form-focused debrief,
+   - an estimated DELE level for the entry.
+5. Entry, scores, and tagged observations persist. **History** view shows
+   per-category accuracy and attempt-volume trends over a rolling window.
+
+### v1 explicitly out of scope (but architected for)
+Workbook, Flashcards, Lessons tabs · Anki export ingestion · conversation mode ·
+multi-user auth (single-user shortcut for now; see §6).
 
 ---
 
 ## 4. The grading contract (grader → app JSON)
 
-The grader **must** emit per-category obligatory-context accounting from entry
-#1 — the one thing that can't be retrofitted without breaking trend
-comparability. Applies identically to prompted and free-journal entries, and
-(for accuracy tagging) to Workbook sentence-production answers.
+The grader **must** emit per-category obligatory-context accounting from entry #1
+— this is the one thing that can't be retrofitted without breaking trend
+comparability. **This contract shape does not change in any phase through at
+least Phase 10** — extensions (e.g. the Phase 8 `uptake` block) are additive
+top-level keys only.
 
 ```json
 {
@@ -115,8 +107,11 @@ comparability. Applies identically to prompted and free-journal entries, and
   "sophistication": {
     "overall": 4,
     "subscores": {
-      "syntactic_complexity": 3, "verbal_range": 4,
-      "lexical_sophistication": 5, "cohesion": 4, "ambition": 6
+      "syntactic_complexity": 3,
+      "verbal_range": 4,
+      "lexical_sophistication": 5,
+      "cohesion": 4,
+      "ambition": 6
     },
     "notes": "…"
   },
@@ -125,7 +120,7 @@ comparability. Applies identically to prompted and free-journal entries, and
 }
 ```
 
-### Error taxonomy (extensive; shared enum across tabs; frozen — see §8.1)
+### Error taxonomy (extensive; shared enum across tabs; frozen — see §8)
 `ser_estar` · `preterite_vs_imperfect` · `subjunctive_trigger` ·
 `subjunctive_form` · `conditional` · `future_tense` · `present_perfect` ·
 `gender_agreement` · `number_agreement` · `article_use` · `por_para` ·
@@ -136,58 +131,54 @@ comparability. Applies identically to prompted and free-journal entries, and
 `lexical_choice` · `false_friend_portuguese` · `accent_orthography` ·
 `register_formality` · `other`
 
-**Note:** the error taxonomy (what gets tagged when a mistake happens) and
-`known_structures` (what's fair game to use at all, §12) are related but
-distinct axes — a taxonomy category can exist without the structure being in
-`known_structures` yet (e.g. `subjunctive_trigger` is a taxonomy category the
-learner has occasionally attempted, but subjunctive is not currently in
-`known_structures` — see §12.1).
+`false_friend_portuguese` flags known traps (familiar, grave, collar,
+emocionado, embarazada, exquisito, …) as a first-class interference signal.
 
 ---
 
 ## 5. Progress metrics (the History view)
 
-Per category, two trend lines over a **trailing 14-day window**: accuracy
-(correct ÷ obligatory contexts) and exposure (obligatory contexts). Rising
-exposure + rising accuracy = progress; rising accuracy + falling exposure =
-avoidance (flagged). A trend shows only at ≥5 in-window obligatory contexts.
-Escalation and avoidance flags per §8.3. **Workbook observations feed these
-same trends** (§10.4) — so practice on a flagged category is what eventually
-clears its flag.
+Per category, two trend lines over a **trailing 14-day window** (see §8 for the
+exact formulas):
+- **Accuracy** = correct ÷ obligatory contexts, within the window.
+- **Exposure** = obligatory contexts (attempt volume), within the window.
+
+Rising exposure + rising accuracy = real progress. Rising accuracy + falling
+exposure = possible avoidance → **flagged**, not celebrated (exact rule in §8).
+A trend is only shown once a category reaches **5 obligatory contexts within
+the current 14-day window** (noise control). Sophistication overall +
+subscores tracked as a secondary series; a persistently low subscore
+(e.g. `verbal_range`) is a targeting hook for the Lessons/Workbook tabs later.
+
+As of Phase 8, a second family of series exists alongside accuracy/exposure:
+**uptake rate** and **avoidance-on-revision rate**, computed only from revision
+attempts (§9.8). These are never blended into the accuracy/exposure trends
+above — see §9.7 for why that separation is load-bearing.
 
 ---
 
 ## 6. Stack, hosting, cost
 
-- **Frontend:** React + Vite, responsive.
+- **Frontend:** React + Vite, responsive (one build serves phone/iPad/desktop).
 - **Backend:** Vercel serverless functions **proxying the Anthropic API** so the
-  key never reaches the browser.
-- **Persistence:** Supabase (Postgres). Single-user; no login UI yet.
-- **Runtime model routing:** Sonnet for grading + lessons; Haiku for
-  workbook/flashcard generation; Anki parsing is plain Python (no LLM).
-  Fable/Opus not used at runtime. **This routing is also the margin story for
-  any future paid product (§11) — most calls are Haiku-cheap.**
-- **Cost controls:** hard monthly spend cap in the Anthropic console; prompt
-  caching on the stable system+rubric prefix; capped output tokens.
+  key never reaches the browser. **Hobby-plan 12-function ceiling is binding** —
+  consolidate routes rather than add new function files (hit and fixed once
+  already, in Flashcards; do not re-hit it in Lectura).
+- **Persistence:** Supabase (Postgres). **v1 shortcut:** single-user, no login UI
+  — real auth deferred until/unless the app is shared. A temporary access-code
+  gate (one shared passphrase, one signed cookie) protects the now-public repo's
+  deployed instance; this is explicitly not real auth.
+- **Runtime model routing:** Sonnet for grading (low volume, nuance) and lessons;
+  Haiku for workbook/flashcard/lectura generation (structured, higher volume);
+  Anki parsing is plain Python (no LLM). Fable/Opus are **not** used at runtime.
+- **Cost controls (day one):** hard monthly spend cap in the Anthropic console;
+  prompt caching on the stable system+rubric prefix; capped output tokens;
+  per-call token metering to a `usage_log` table so real per-feature cost is
+  visible, not retrofitted.
 
-### 6.1 Token metering (added now, for a multi-tenant future)
-
-The serverless proxy logs, per model call: timestamp, tab/feature, model used,
-`input_tokens`, `output_tokens` (both returned by the API on every response),
-and a `user_id` (a constant placeholder while single-user). Stored in a simple
-`usage_log` table. **Purpose:** with zero present cost, this establishes the
-real per-day/per-feature cost baseline needed to later price the product, show
-users their own usage, and enforce tier caps (§11). Build it into the proxy
-now; retrofitting metering after the fact means losing all the historical
-baseline data.
-
-```sql
-usage_log (
-  id, user_id text, tab text, model text,
-  input_tokens int, output_tokens int,
-  created_at
-)
-```
+> **Open decision:** stack assumes a React SPA, which follows from the confirmed
+> responsive multi-device + tabbed + portfolio requirements. Streamlit remains a
+> faster-but-less-showpiece alternative; flag if you want to reconsider.
 
 ---
 
@@ -195,528 +186,507 @@ usage_log (
 
 | Phase | Deliverable | Status |
 |---|---|---|
-| 0 | Scaffold: repo, stack, tabbed shell, serverless proxy, one live round-trip | Done |
-| 1 | **Writing tab** — prompt gen + free journaling + dual-axis grading + trends | Done |
-| 2 | Error-log spine hardened; taxonomy trends; **Word Bank** | Done |
-| 3 | **Lessons tab** — conversational, mixed-language, seedable from error log | Done |
-| 4 | **Workbook tab** — exercises targeting weak categories; **Anki ingest (read path)**; proxy token metering | Done |
-| 5 | Flashcards tab — card generation + dedup + TSV export (§14); entry regrade for incomplete gradings (§13, deferred within this phase) | **Current build** |
-| 6 | Multi-tenancy & monetization — auth, per-user metering surfaced, tiers/caps, onboarding | Parked — see §11 |
+| 0 | Scaffold: repo, stack, tabbed shell, serverless proxy, one live API round-trip | Done |
+| 1 | **Writing tab** — prompt gen + dual-axis grading + history/trends → **deploy (v1)** | Done |
+| 2 | Error-log spine hardened; taxonomy trends powering targeting; **Word Bank** added | Done |
+| 3 | **Lessons tab** — on-demand threaded e-lecture, pinned to DELE level at creation | Done |
+| 4 | **Workbook tab** — exercises targeting weak categories; Anki `.colpkg` read-path ingestion (FSRS signal, no write-back); token metering | Done |
+| 5 | **Flashcards tab** — TSV export matching real Anki note-type schema (`docs/ANKI_SCHEMA.md`); dedup against `known_cards` before generation | Done |
+| 6 | Multi-tenancy / monetization | **Parked on purpose** |
+| 7 | Targeted prompt elicitation — seed prompts from the error log's weak categories | Deferred — see `docs/ROADMAP.md` |
+| **8** | **Revisión — the revision cycle** | **Current — see §9** |
+| 9 | Focused feedback budget — deep explanation on target categories, terse elsewhere | Deferred — see `docs/ROADMAP.md` |
+| **10** | **Lectura — the input tab** | **Fast-tracked, builds after Phase 8 ships — see §10** |
+
+Detailed specs for Phases 3–5 live in the shipped code and `README.md`'s
+progress log, not retroactively written here. §8 (Phase 2) is the last
+fully-specced legacy phase in this document; §9 and §10 (Phases 8 and 10) are
+the current build-ready specs.
 
 ---
 
-## 8. Phase 2 Spec (shipped): Error-Log Trends + Word Bank
+## 8. Phase 2 Detailed Spec: Error-Log Trends + Word Bank
 
 ### 8.1 Taxonomy — frozen
-The 25-category enum in §4 is the literal, frozen source of truth. Defined once
-in a shared module, imported by every tab.
+
+The 25-category enum in §4 is the literal, frozen source of truth for Phase 2
+onward. Defined once in a shared module, imported by every tab — never
+redefined per-tab, never renamed without a migration.
 
 ### 8.2 Schema
+
+No rollup/cache table. At single-user, low-daily-volume scale, computing
+14-day-window trends on the fly from raw observations is trivial, and skipping
+a cache table removes an entire class of cache-vs-source-of-truth consistency
+bugs. Raw observations are the only source of truth; trends are queries.
+
 ```sql
+-- source of truth, one row per graded observation
 error_observations (
-  id, entry_id (FK), category (enum, frozen taxonomy),
+  id, entry_id (FK), category (enum, frozen taxonomy per §8.1),
   obligatory_context boolean, correct boolean,
   excerpt, correction, note, portuguese_interference boolean,
-  source_tab text,          -- 'writing' | 'workbook' (added Phase 4, §10.4)
   created_at
 )
+
+-- open capture, no classification at insert time
 word_bank (
-  id, term text, context_sentence text nullable, note text nullable,
-  source_tab text, dedup_status text default 'pending', created_at
+  id, term text,                -- word OR phrase, unconstrained, whatever
+                                 -- form it was encountered in
+  context_sentence text nullable,
+  note text nullable,
+  source_tab text,
+  dedup_status text default 'pending',  -- checked later, at export/batch time,
+                                         -- against the external master word list
+  created_at
 )
 ```
-No rollup/cache table. Trends computed at read time from raw observations.
 
-### 8.3 Trend logic (read time)
-- Window: trailing 14 days.
-- Min data: trend shows only at ≥5 in-window obligatory contexts.
-- Escalation (red): ≥3 in-window `obligatory_context AND NOT correct`. Clears
-  only via trailing-window aging-out.
-- Avoidance (yellow): current-window exposure < half of prior window's, while
-  accuracy is flat or higher.
+### 8.3 Trend logic (computed at read time)
+
+- **Window:** trailing 14 days from now.
+- **Minimum data:** a category's trend displays only if its count of
+  `obligatory_context = true` observations **within the current 14-day window**
+  is ≥ 5. Below that, show "not enough recent data" rather than a trend.
+- **Escalation (3-repeats rule):** a category is flagged for a targeted
+  micro-lesson when its count of `obligatory_context = true AND correct = false`
+  observations **within the current 14-day window** is ≥ 3.
+- **Avoidance flag:** compare the current 14-day window to the *prior* 14-day
+  window (days 15–28 ago). Flag a category when exposure (obligatory-context
+  count) in the current window is less than half of the prior window's
+  exposure, while accuracy in the current window is flat or higher than the
+  prior window's accuracy. This requires querying two window-periods of
+  history at read time — no separate storage needed since raw data holds it all.
 
 ### 8.4 Word Bank
-Single app-wide "+ Word" affordance; 3-field form (term, context_sentence,
-note); unstructured at capture; dedup deferred to export/batch time.
 
-### 8.5 Migration safety (every phase)
-Back up Supabase data; versioned migration file (never a dashboard edit); test
-against a copy of real production data.
+- **Capture UI:** a single persistent "+ Word" affordance, available on every
+  tab (small floating control). Opens a lightweight 3-field form:
+  - `term` (required) — a word or a phrase, free text, no length constraint,
+    no forced grammatical classification (no verb/tense/category tagging at
+    capture time — that's deferred entirely to the export/batch step, matching
+    the existing master-word-list workflow of raw entry → later marked
+    ✓ In Deck / ADD).
+  - `context_sentence` (optional)
+  - `note` (optional)
+  - Auto-stamped: `source_tab`, `created_at`.
+- **Explicitly out of scope this phase:** search, filter, edit views, and any
+  dedup-checking UI. The bank is being *filled*, not yet *managed* — that
+  comes later, at flashcard-generation time (Phase 5).
 
----
+### 8.5 Migration safety
 
-## 9. Phase 3 Spec (shipped): Lessons Tab
+Before altering any existing table: back up current Supabase data (real Phase 1
+entries/observations already exist and must not be lost); write schema changes
+as a versioned migration file, not a manual dashboard edit; test the migration
+against a copy of real production data, not an empty dev database.
 
-Conversational threads (`lesson_log` + `lesson_messages`), model-decided
-opening depth, recognition-only comprehension checks, `dele_level_at_creation`
-stamped per thread (growth record; no staleness machinery). Lessons never
-writes to `error_observations`. Shipped Spanish-first, with no mixed-language
-weighting — that rule (§2) applies going forward, starting with Workbook, and
-is not a retrofit item for Lessons. Full detail retained in repo history /
-CLAUDE.md. **Fully exempt from `known_structures`** — any topic can be
-requested regardless of what's "known" (§12.4).
+**This rule is standing, not Phase-2-specific.** It applies to every migration
+in every phase, including §9 and §10 below.
 
----
+### 8.6 Definition of done for Phase 2
 
-## 10. Phase 4 Spec (shipped): Workbook Tab + Anki Ingest (read path)
-
-### 10.1 Purpose
-
-Turn the error log from a *diagnostic* into a *treatment*. Workbook generates
-research-backed production exercises targeting the learner's weak categories,
-and — crucially — its results feed back into the same error log, so practicing
-a flagged category is the mechanism that eventually clears its escalation flag.
-
-### 10.2 Exercise types (matching dropped)
-
-Grounded in the learner's real teacher worksheets. Four types, each mapped to
-a research principle; **matching is intentionally excluded** (weakest evidence;
-recognition work belongs to Flashcards).
-
-1. **Contextual cloze (connected narrative)** — centerpiece type. **The
-   only exercise type eligible for the narrative-necessity exception (§12.3).**
-2. **Conjugation recall (isolated cued sentences).** One sentence, target verb
-   + person specified (e.g. "Nosotros ___ a Managua. (VOLAR)"). Maps to
-   targeted retrieval practice. Good for a narrow weak-verb drill.
-3. **Sentence production (open personal-response).** Free-form short answers to
-   questions that elicit the target structure (e.g. "¿Prefieres té o café?").
-   Maps to the generation effect — highest value, produces the richest error-log
-   observations since it's real output.
-4. **Gap-fill (isolated, non-narrative).** Single decontextualized cued blanks,
-   for quick high-volume drilling of one form.
-
-Any additional exercise type must be justified by a named research principle in
-the PRD before being added (per §2).
-
-### 10.3 Session sourcing (both, like Lessons' macro/micro)
-
-A Workbook session gets its target category/topic from either:
-- **Auto** — pulled from a currently escalated/weak category (the error log
-  suggests what to drill), or
-- **Freeform request** — the learner types "let's do some conjugation practice"
-  or picks a structure themselves.
-
-Plus the **connective-tissue links**: Lessons' existing "Want to practice this
-further?" stub and Writing's feedback screen both deep-link into a pre-seeded
-Workbook session on the relevant category (same mechanism reused, no new
-infra). Writing's link is added this phase.
-
-### 10.4 Grading + error-log write-back
-
-- **Objective types (cloze, conjugation recall, gap-fill):** grade
-  **auto-match first** (exact/normalized string match — instant, no API cost);
-  fall back to an LLM check **only for near-misses** (accent-only differences,
-  defensible alternates) to avoid false negatives. Objective items are scored
-  boolean correct/incorrect; **no sophistication scoring** (that's Writing's
-  job).
-- **Sentence production:** LLM-graded for accuracy (free-form output);
-  receives accuracy observations, and may optionally receive lightweight
-  sophistication scoring since it resembles free writing.
-- **All exercise attempts write real `error_observations`** with
-  `source_tab = 'workbook'`, into the **same table** as Writing, contributing
-  to the same 14-day trend/escalation/avoidance math (§5, §8.3). These are
-  genuine observations, not synthetic/practice-only rows. This requires adding
-  a `source_tab` column to `error_observations` (migration per §8.5).
-
-### 10.5 Anki ingest — read path only (this phase)
-
-- **Flow (desktop as hub):** learner syncs AnkiMobile → AnkiWeb → desktop;
-  exports the full collection as `.colpkg` from **desktop**; uploads that file
-  to the app. A **plain-Python parser** (no LLM) opens the `.colpkg`
-  (SQLite-based) and extracts weak items by **FSRS signals** — low stability,
-  high lapse count, retention below the learner's 90% target.
-- **Output:** a list of weak cards/verbs that Workbook can use as an additional
-  targeting source alongside the error log.
-- **Read path only.** Card *generation*, TSV/`.apkg` export, and dedup against
-  the master word list are **Phase 5 (Flashcards)** — explicitly out of scope
-  here to keep Phase 4 focused. (Feasibility confirmed: AnkiMobile/desktop
-  `.colpkg` includes cards + statistics; FSRS runs natively on both.)
-
-### 10.6 What Workbook must NOT do (this phase)
-
-- Must not build the Anki **write-back** path (Phase 5).
-- Must not build matching exercises.
-- Must not duplicate the History view's badges to browse weak categories.
-- Must not introduce auth, billing, or tiers (§11 is parked).
-
-### 10.7 Definition of done for Phase 4
-
-- All four exercise types generate correctly, calibrated to `dialect` +
-  `dele_level`, in the learner's worksheet-style format.
-- Session sourcing works both ways (auto from a flagged category; freeform
-  request). Writing's feedback screen deep-links into a seeded Workbook session.
-- Objective grading is auto-match-first with LLM near-miss fallback; sentence
-  production is LLM-graded.
-- Workbook attempts write `error_observations` with `source_tab='workbook'`;
-  a synthetic drill on a flagged category is shown to add to that category's
-  in-window counts (and, with enough correct answers over time, is the path by
-  which its escalation flag ages out).
-- `.colpkg` upload → Python parser returns a weak-item list by FSRS
-  stability/lapses; this list is usable as a Workbook targeting source.
-- Proxy token metering (§6.1) is live: every model call logs input/output
-  tokens to `usage_log`.
-- `source_tab` column migration on `error_observations` follows §8.5; all prior
-  Writing/Lessons data intact.
-- **`known_structures` three-tier rule (§12): NOT MET.** Confirmed
-  unimplemented during Phase 5 planning (no schema, no Settings UI, no
-  prompt injection) — carried forward as open Phase 4 follow-up scope, not
-  a completed DoD item. The three verification tests below describe what
-  "done" looks like once it's built: (a) a synthetic conjugation-recall/
-  gap-fill/sentence-production request confirms no structure outside the
-  list appears at all, except the deliberate target; (b) a synthetic
-  contextual-cloze request confirms an untaught-but-essential structure, if
-  used, is explicitly flagged inline, not silent; (c) a synthetic Writing
-  prompt confirms strict avoidance with **no** narrative exception.
+- Taxonomy is a single frozen enum, imported everywhere, matching the 25
+  categories in §4 exactly.
+- A category with 4 in-window obligatory contexts shows no trend; one with 5 does.
+- A synthetic case with 3 in-window incorrect-and-obligatory observations
+  triggers the escalation flag.
+- A synthetic case with a current-window exposure drop to less than half of
+  the prior window, with flat-or-rising accuracy, triggers the avoidance flag.
+- A Word Bank entry — tested with both a single word and a multi-word phrase —
+  saves correctly from at least two different tabs and persists across a
+  page refresh.
+- All existing Phase 1 entries and observations are intact and queryable after
+  the migration runs.
 
 ---
 
-## 11. Phase 6 (parked): Multi-tenancy & Monetization
+## 9. Phase 8 Detailed Spec: Revisión (the revision cycle)
 
-**Not built now. Captured so the product future is not accidentally designed
-out.** The single thing built early to enable all of this is proxy token
-metering (§6.1) — everything below is deferred.
+**Status: current target.** Sequencing: build and ship this before starting
+§10 (Lectura). They share no code and no schema, but this phase modifies the
+existing grading path — the highest-risk surface in the app — and should not
+be in flight at the same time as a new tab.
 
-### 11.1 The core sustainability problem
-The app currently runs on the owner's Anthropic key (Vercel env var). That is
-correct for single-user but unsustainable the moment a stranger uses it: a
-"super user" spends the owner's money with no ceiling. Three resolutions, each
-a known AI-wrapper pattern:
-1. **BYO-key** — each user supplies their own Anthropic key; they pay Anthropic
-   directly. Trivial to build, zero per-user cost to the owner, good
-   developer/portfolio story — but brutal consumer onboarding (few language
-   learners will create an Anthropic account). Caps the audience to technical
-   users.
-2. **Owner-pays + subscription** — owner eats API cost, covers it with a monthly
-   fee. Real consumer model, but now a margin business: needs usage caps +
-   tiers so a heavy user can't cost more than they pay.
-3. **Hybrid** — free tier BYO-key, paid tier owner-handled. Two auth paths.
+### 9.1 Rationale
 
-### 11.2 Why the existing architecture already supports this
-- **Model routing (§6) is the margin story.** High-volume tabs already run on
-  Haiku (pennies); only low-volume grading/lessons use Sonnet. A frontier-only
-  app couldn't survive a ~$10–20/mo price; this one can.
-- **Metering (§6.1) is the control surface.** Per-call token logging enables:
-  a running "usage this month" number per user, hard per-tier caps that degrade
-  gracefully ("limit reached, resets on the 1st, or upgrade"), and a real
-  cost-per-active-day figure to price against.
+Feedback is currently terminal: the grader returns corrections, they get read,
+the entry closes. The written-corrective-feedback literature converges on the
+finding that uptake happens during **re-production** — regenerating the
+corrected form under retrieval conditions — not during the reading of a
+correction. Aula produces high-quality feedback and then never asks for
+anything to be done with it.
 
-### 11.3 Pricing follows measured cost — not a guess
-Run the app personally for a month with metering on to get a real
-cost-per-active-day. Typical SaaS covers COGS ~5–10×; if a heavy user costs
-~$2–4/mo in tokens, a ~$12–20/mo price has healthy margin. Set price *after*
-data exists, not before.
+This phase supersedes the open **entry regrade** item from the README's "What's
+next" section. The reason to resubmit an entry stops being "the grading came
+back broken" and becomes "I'm fixing it deliberately," which is a feature
+rather than a repair.
 
-### 11.4 Onboarding / "how do I explain this"
-The four-tab error-log-spine concept is elegant but not self-evident to a
-stranger. A guided first-run and a one-screen "here's the loop" explainer are a
-genuine product-design + copywriting effort — deferred until the tabs all
-exist. Worth a dedicated session, not a footnote.
+### 9.2 The flow
 
-### 11.5 Portfolio value regardless
-Even if never sold: "architected for multi-tenancy with per-user cost metering,
-here's the pricing model I'd use" is exactly the systems-thinking a
-Chief-of-Staff/operator role wants to see. This thinking pays off either way.
+1. Entry is written and graded (unchanged — §4 contract).
+2. Feedback view gains a **`Revisar`** action.
+3. Revision editor opens with:
+   - the **original text**, unmodified,
+   - inline markers at each error location showing **category only**,
+   - **no corrections shown**,
+   - a `Ver correcciones` reveal, always available, never default.
+4. The revision is written and submitted.
+5. A second grading pass runs with the parent entry's observations as input,
+   returning both a standard grading of the new text **and** an uptake
+   resolution per originally-flagged error.
+6. Both versions persist and are viewable side by side.
 
----
+### 9.3 Indirect feedback — the load-bearing design decision
 
-## 12. Known-structures constraint — cross-tab, three-tier rule
+The revision editor shows *where* and *what category*, never *what the correct
+form is*. Showing the corrected text turns revision into transcription, which
+generates no retrieval and teaches nothing. Withholding it forces reconstruction
+of the form, which is the entire mechanism.
 
-**Implementation status: NOT BUILT.** This section is fully specified but,
-as of Phase 5 planning, confirmed unimplemented — no `known_structures`
-column exists on any table (the actual settings table is `settings`, not the
-`learner_profile` name used in the draft schema below — §12.2 was never
-created as written), no Settings UI exists to edit it, and no generation
-prompt (Workbook's or Flashcards', §14) injects it. Do not assume Workbook
-or Flashcards honor this rule just because it's documented as a Hard Rule in
-CLAUDE.md — they don't yet. Building this is separate, real scope: schema +
-migration, a Settings UI surface (none currently exists), the tiered prompt
-logic itself, and the three synthetic verification tests originally scoped
-for Phase 4's Definition of Done (§10.7).
+The reveal exists because a genuinely unknown structure cannot be retrieved
+from nothing, and staring at it is worse than looking. Its use is recorded
+(`revealed_corrections`) so the rate is visible over time — a rising reveal
+rate on a category is itself a signal that the category needs a *lesson*, not
+a drill.
 
-**Problem this solves:** `dele_level` is a coarse proxy for what a *typical*
-learner at that level knows — it doesn't track what *this* learner has
-actually been taught. A structure can be nominally level-appropriate while
-still being new to him, and generated content can spring it on him unannounced.
-
-### 12.1 Current known_structures (seed value, learner-editable)
-
-Present tense — regular (AR/ER/IR) **and** irregular yo-forms (-go verbs)
-**and** stem-changing (o→ue, e→ie, e→i) · preterite indefinido · present
-perfect (haber + participle) · direct object pronouns · indirect object
-pronouns · ser/estar · **ir a + infinitive** (periphrastic near future —
-**not** the synthetic future, e.g. `hablaré` counts as untaught) ·
-gustar-family verbs · demonstratives.
-
-This is deliberately a **narrower, more conservative baseline** than the
-learner's full exposure history (which also includes imperfect, conditional,
-emerging subjunctive, stem-changing beyond present tense, impersonal se,
-etc.) — those are things he's touched but isn't ready to have sprung on him in
-a worksheet without warning.
-
-### 12.2 Schema
+### 9.4 Schema
 
 ```sql
-learner_profile (
-  id, dialect text default 'mx', dele_level text,
-  known_structures text,   -- free text, learner-maintained, unstructured
-  updated_at
-)
+ALTER TABLE entries
+  ADD COLUMN parent_entry_id uuid NULL REFERENCES entries(id),
+  ADD COLUMN revision_number int NOT NULL DEFAULT 0,
+  ADD COLUMN revealed_corrections boolean NOT NULL DEFAULT false;
+
+ALTER TABLE error_observations
+  ADD COLUMN is_revision boolean NOT NULL DEFAULT false,
+  ADD COLUMN resolves_observation_id uuid NULL REFERENCES error_observations(id);
+
+CREATE TABLE uptake_resolutions (
+  id uuid PRIMARY KEY,
+  revision_entry_id uuid NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+  observation_id uuid NOT NULL REFERENCES error_observations(id),
+  category text NOT NULL,        -- frozen taxonomy, denormalized for query speed
+  outcome text NOT NULL,         -- 'fixed' | 'still_wrong' | 'avoided'
+  note text,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX ON uptake_resolutions (category, created_at);
 ```
 
-**UI:** a simple editable text area in Settings, alongside dialect and level.
+All additions are nullable or defaulted. Every existing Phase 1–5 entry and
+observation remains valid with no backfill required.
 
-### 12.3 The three-tier rule
+### 9.5 The three outcomes — and why `avoided` matters
 
-1. **Within `known_structures`** → free use anywhere, no flagging needed.
-2. **The deliberate target** of a Workbook session (including a
-   just-escalated or explicitly-requested category) or a Lesson topic →
-   exempt. That's the point of practicing or teaching it.
-3. **Narratively necessary but untaught** → allowed **only** in Workbook's
-   **contextual cloze narrative** type, and **only if explicitly called out
-   inline** — never silently blended in. This exception does not apply
-   anywhere else: isolated cued sentences, conjugation recall, gap-fill,
-   sentence-production questions, and Writing prompts must avoid untaught
-   structures entirely, with no narrative-necessity carve-out (§3).
-4. **Everything else untaught and non-essential** → avoided; the generator
-   rewrites around it.
+| Outcome | Meaning |
+|---|---|
+| `fixed` | The obligatory context is still present and the form is now correct. |
+| `still_wrong` | The obligatory context is still present and the form is still wrong. |
+| `avoided` | The obligatory context is **gone** — the sentence was rewritten around it. |
 
-### 12.4 Lessons are fully exempt
+`avoided` is the outcome that matters and the one a naive implementation will
+miss. If `quiero que vas` is flagged and the revision reads `voy a ir`, a
+two-outcome scorer records a fix. Nothing was learned; the structure was
+dodged. That is the exact failure mode this app was built to catch,
+reappearing one level down.
 
-The Lessons tab (§9) ignores `known_structures` entirely. That's how the list
-is meant to grow — learn something in a Lesson, then (§12.5) add it once solid.
+The grader cannot reliably distinguish deliberate avoidance from ordinary
+editing, and should not try. It reports only that the context is gone. A
+category with a high `avoided` rate across many revisions is escalation
+material regardless of intent.
 
-### 12.5 Growth path (documented now, not built this phase)
+### 9.6 Uptake grading contract
 
-Intended mechanism: periodic worksheet upload, with a short learner-typed tag
-alongside it ("this covers imperfect + preterite irregulars") appended to
-`known_structures`. Deliberately manual/asserted by the learner, not
-auto-extracted by an LLM. Not built in Phase 4 — the manual Settings text-area
-edit (§12.2) is the complete Phase 4 mechanism.
+The revision grading call returns the standard grading contract (§4,
+**unchanged**) plus one additional top-level key:
+
+```json
+{
+  "corrected_text": "…",
+  "accuracy": { "observations": [ "…" ], "category_summary": { "…": "…" } },
+  "sophistication": { "…": "…" },
+  "feedback_prose": "…",
+  "dele_level_estimate": "B1",
+
+  "uptake": {
+    "resolutions": [
+      {
+        "observation_id": "uuid-of-parent-observation",
+        "category": "subjunctive_trigger",
+        "outcome": "avoided",
+        "note": "Original 'quiero que vas' was replaced with 'voy a ir' — the subject-change trigger is no longer present."
+      }
+    ],
+    "summary": {
+      "flagged": 7,
+      "fixed": 4,
+      "still_wrong": 2,
+      "avoided": 1,
+      "new_errors_introduced": 2
+    }
+  }
+}
+```
+
+**Implementation rules:**
+
+- `resolutions` must contain exactly one entry per parent observation where
+  `obligatory_context = true AND correct = false`. Not more, not fewer.
+  Validate this in code before writing rows — a mismatch means the model
+  dropped or invented a resolution, and the write must fail loudly rather than
+  silently persist a partial set.
+- `observation_id` values are supplied to the model in the request. The model
+  echoes them back; it never generates them.
+- `new_errors_introduced` counts errors in the revision that have no parent
+  observation. Overcorrection is real and worth watching — a revision that
+  fixes four things and breaks three is not progress.
+- Model: **Sonnet**. This is judgment work, not volume.
+- The truncation guard added 07-10 applies here too, and matters more: this
+  response is longer than a standard grading, and `uptake` generates last.
+  Extend the completeness check to require a well-formed `uptake` block with
+  the expected resolution count.
+
+### 9.7 Trend isolation — critical
+
+**Revision observations are excluded from accuracy and exposure trends.**
+
+A revision is a second attempt at the same obligatory contexts with the
+errors already located. Counting it inflates accuracy and double-counts
+exposure, which would corrupt every trend line built since Phase 1 —
+silently, and retroactively.
+
+- All History trend queries filter `is_revision = false`.
+- Escalation flags (3-repeats rule, §8.3) and the avoidance flag both compute
+  on non-revision observations only.
+- The DELE-level nudge ("last 5 entries grading consistently higher") counts
+  original entries only. A revision is not an entry for nudge purposes.
+- Uptake is its own separate series, never blended into accuracy.
+
+**Write the test before the feature.** A fixture that grades an entry,
+records the trend state, saves a revision, and asserts the trend state is
+byte-identical.
+
+### 9.8 Uptake metrics (new History series)
+
+Per category, over the trailing 14-day window:
+
+- **Uptake rate** = `fixed ÷ (fixed + still_wrong + avoided)`
+- **Avoidance-on-revision rate** = `avoided ÷ (fixed + still_wrong + avoided)`
+
+Same noise control as everything else: display only once the denominator
+reaches **5 within the window**. Below that, "not enough recent data."
+
+Interpretation to surface in the UI:
+
+- High uptake + low avoidance → the correction is landing, the rule is learnable.
+- Low uptake + low avoidance → the rule isn't understood; escalate to a
+  Lesson, not a Workbook drill.
+- High avoidance → the structure is being dodged; escalate regardless of what
+  the accuracy trend says.
+
+### 9.9 Edge cases
+
+- **Revision of a revision.** Allowed. `revision_number` increments;
+  `parent_entry_id` points at the immediate parent, not the root. Uptake for
+  revision 2 scores against revision 1's observations.
+- **Parent grading was truncated.** If the parent entry failed the
+  completeness guard, `Revisar` is disabled with an explanation. Do not
+  attempt uptake scoring against a partial observation set.
+- **Revision is unrelated text.** Every resolution comes back `avoided` and
+  `new_errors_introduced` is high. This is correct behavior, not a bug — no
+  special handling.
+- **Parent entry deleted.** `ON DELETE` on `uptake_resolutions` cascades from
+  the revision entry, not the parent. Deleting a parent that has revisions
+  should be blocked in the UI.
+
+### 9.10 Definition of done for Phase 8
+
+- A revision saves with correct `parent_entry_id` and `revision_number = 1`.
+- History accuracy and exposure trends are **numerically identical** before
+  and after a revision is saved, proven by fixture test.
+- The revision editor shows error location and category only; corrections
+  appear only after an explicit reveal, and `revealed_corrections` records it.
+- A synthetic revision that rewrites around a flagged obligatory context is
+  scored `avoided`, not `fixed`.
+- Resolution count mismatch against the parent observation set fails the
+  write and surfaces an error, rather than persisting partial data.
+- Uptake rate and avoidance-on-revision rate display once each reaches 5
+  in-window resolutions.
+- Revision of a revision works.
+- All existing entries and observations are intact and queryable after migration.
 
 ---
 
-## 13. Entry regrade (Phase 5, not built)
+## 10. Phase 10 Detailed Spec: Lectura (the input tab)
 
-### 13.1 Problem
+**Status: fast-tracked.** Do not begin implementation until §9 (Phase 8) has
+shipped — see §9's sequencing note.
 
-`persistGradedEntry` (`src/shared/db/entries.ts`) always does a plain
-`INSERT` — there's no way to fix an entry whose grading came back incomplete
-except resubmitting the same text, which creates a **second** `entries` row
-and a **second** batch of `error_observations` rows tied to it. That's not
-cosmetic: `fetchHistoryData` reads every `entries` row (sophistication trend)
-and every `error_observations` row (category accuracy/exposure trend)
-unfiltered, and the 14-day trend window (§5, §8.3) keys off
-`error_observations.created_at` directly. A duplicate observation batch
-double-counts exposure and skews accuracy for whatever categories the entry
-touched — directly against this app's avoidance-proofing design principle
-(§2): accuracy is correct ÷ **genuine** attempts.
+### 10.1 Rationale
 
-### 13.2 Current status of the failure mode
+Aula has no input channel. Correcting output is remediation; comprehensible
+input at volume is what builds the implicit system being remediated. This is
+the largest single gap in the app.
 
-As of the `isCompleteGradingContract` guard (added alongside the mobile pass,
-same session as this spec), a truncated/incomplete grading now returns a 502
-and is **never persisted** — `api/grade.ts` returns before calling
-`persistGradedEntry`. So this is not an active failure mode for *new*
-entries; it only applies to rows written **before** that guard shipped, when
-a blind `as GradingContract` cast let partial data (empty `feedback_prose`)
-through silently. Phase 5 should decide whether to backfill-detect those old
-rows (a read-time check: `feedback_prose = ''`) or treat this as closed now
-that the write path is guarded — don't assume it's still live without
-checking.
+The distinguishing feature is not glossing — every reader app glosses. It is
+**input enhancement**: surfacing, inside authentic text, the exact structures
+the error log says are currently weak, so reading doubles as targeted
+noticing practice on the same categories being tracked everywhere else. That
+is the thing only this app can do, because only this app knows the error log.
 
-### 13.3 Design
+### 10.2 Scope — v1
 
-An explicit "Regrade" action tied to a known `entryId` — not inferred from
-text-matching, matching this codebase's preference for explicit signals over
-inference (e.g. `source_tab` tagging, §10.4). Server-side: `UPDATE entries`
-in place (corrected_text/feedback/sophistication/dele_level_estimate) +
-delete-then-reinsert the `error_observations` rows for that `entry_id`, as
-one logical operation. Reuse the existing compensating-action pattern already
-in `persistGradedEntry` (which rolls back the `entries` insert if the
-observations insert fails) rather than inventing a new transaction pattern.
+**Input: pasted text only.** No URL fetching, no scraping, no paywall
+handling. Paste from BBC Mundo, Bloomberg Línea, El País, or whatever Flavia
+sends.
 
-**Trigger condition**: only offered when the stored entry's grading is
-flagged incomplete (empty/missing `feedback_prose` — the truncation bug's
-exact signature). Not a general "resubmit any past entry" button.
+**Pipeline:**
 
-**Explicit non-goal**: general redo/resubmit of a legitimately-graded past
-entry. Workbook has a hard rule that observations are forward-only — never
-edited or deleted — specifically to prevent gaming the avoidance-proofing
-flags (CLAUDE.md Hard rules; §10.4). A general regrade-anything feature would
-cross that same line for Writing. Regrade here is scoped strictly to "fix a
-technically-broken result," not "re-roll for a better outcome."
+1. **Tokenize + frequency-rank** — plain code, no model call.
+2. **Coarse known-item filter** — plain code. Tokens above a frequency-rank
+   threshold are assumed known and skipped.
+3. **Single batched model call** on the remainder, returning `{surface, lemma,
+   gloss}` per item, glossed **in context**.
+4. **Exact known-item diff** — plain code, on lemma, against the
+   `known_cards` ledger and `word_bank`. Only genuinely unknown items render
+   as glossed.
+5. **Input enhancement** — highlight instances where a currently-flagged
+   category appears *correctly used by a native writer*, with a one-line
+   noticing prompt on tap. Toggleable, **off by default**.
+6. **Comprehension questions** — 4–6, in Spanish, at the stored DELE level.
+7. **Capture** — one tap to Word Bank with the real context sentence and the
+   real capture date.
 
-**Audit column**: `entries.last_regraded_at timestamptz null`, so a regraded
-row is visibly distinguishable from a first-pass grading. Deliberately
-minimal — no full history/versioning table (§2's "lean and adaptable").
+### 10.3 The lemmatization decision
 
-**Migration safety**: any new column follows §8.5 — versioned migration
-file, backup first, same as every prior phase's schema change.
+Known-item diffing has to work across inflection: the deck holds `superar`,
+the article contains `superó`. That needs lemmas.
 
----
+**Do not add a lemmatizer dependency.** spaCy plus `es_core_news_sm` is a
+heavy addition to a Vercel serverless function for one job, and the repo
+already hit the Hobby-plan function ceiling on 07-10.
 
-## 14. Phase 5 Spec: Flashcards Tab (rebuilt to match the real Anki deck)
+Instead, **have the model return the lemma alongside the gloss** in the same
+batched call. The trade-off is real and worth naming: it means glossing a
+small number of items that turn out to be known, since the exact diff happens
+after the call rather than before. The frequency filter in step 2 keeps that
+waste small, and it costs one Haiku call rather than a dependency, a
+cold-start penalty, and a deploy-size problem.
 
-**Rebuilt this session** — the original implementation (generic
-term/translation/example cards, dedup against its own generation history)
-ignored the learner's actual Anki collection and produced cards that didn't
-fit it. `docs/ANKI_SCHEMA.md` is now the authoritative contract for deck
-structure, note types, tagging, and dedup; this section describes the
-design built against it. Read `docs/ANKI_SCHEMA.md` alongside this section
-— it has the full deck table, field-by-field note-type definitions, and the
-tagging vocabulary that this section only summarizes.
+### 10.4 Frequency list
 
-### 14.1 Purpose
+Check a Spanish frequency list into the repo — the top 5000 is sufficient.
+Two viable sources:
 
-Recognition-focused review, complementing Workbook's production-focused
-drilling (§10.2: "recognition work belongs to Flashcards"). Generates cards
-that slot directly into the learner's real Anki deck — correct note type,
-correct subdeck, correct field order — dedups against what's actually
-already in that deck, and exports as TSV grouped by deck for manual import.
-**Anki remains the review/study surface** (§10.5's "desktop as hub"
-framing); Aula's own review step (§14.4) is curatorial (catch
-misclassification before export), not a competing spaced-repetition study
-mode.
+- the `wordfreq` Python package, or
+- an OpenSubtitles-derived list such as `hermitdave/FrequencyWords` on GitHub.
 
-### 14.2 Sources
+**Verify the license before committing it**, since the repo is public and
+MIT-licensed. Do not use a list extracted from a commercial frequency
+dictionary.
 
-- **Word Bank** (§8.4) — every captured term is eligible.
-- **Anki weak items** — reuses `api/anki-ingest.py`'s existing FSRS-based
-  weak-item output (lapses ≥ 4 OR retrievability < 0.85) as an input source;
-  no new weak-item detection logic. The same upload's *unfiltered* item list
-  (every card, not just weak ones) is also what seeds `known_cards` (§14.5).
+Set the coarse filter threshold at **rank ≤ 2000** initially and tune it
+against real articles: too low and the model call gets expensive, too high
+and known words slip past the filter into the gloss request. This is a config
+constant, not a hardcoded number.
 
-### 14.3 Generation
+### 10.5 Hard rules
 
-One Sonnet call per batch — **not Haiku**, a deliberate exception to the
-model-routing Hard Rule, per `docs/ANKI_SCHEMA.md` §8: quality/consistency
-matters more than volume for this call. The system prompt embeds
-`docs/ANKI_SCHEMA.md`'s rules (deck list, note-type field order,
-classification rule, tagging vocabulary) as a TS constant
-(`src/shared/flashcards/ankiSchema.ts`) — chosen over reading the `.md` file
-at runtime to match every other prompt in this codebase (hardcoded
-templates, no runtime file reads), with the tradeoff that the embedded copy
-needs manual updating if `docs/ANKI_SCHEMA.md` changes.
+- **Lectura never writes to `error_observations`.** Reading comprehension is
+  not a production error. Input is input. If comprehension tracking is
+  wanted later it gets its own table.
+- **Anything deterministic gets no model call.** Tokenizing, frequency
+  ranking, known-item diffing, and threshold filtering are plain code.
+- **Model: Haiku**, one batched call for glosses and lemmas, a second for
+  comprehension questions. Never per-token calls.
+- **Never let a model invent a date.** Reuse the date-threading fix from
+  07-11 — Word Bank captures from Lectura carry the real capture date, and
+  the `leccion::` tag is omitted rather than guessed.
+- **Do not add new serverless functions.** Consolidate Lectura's endpoints
+  into an existing route; the Hobby-plan 12-function ceiling is already binding.
+- **Portuguese interference applies here more than anywhere.** A gloss for a
+  false friend must flag it explicitly — this is the moment of first
+  encounter, where the wrong inference gets fossilized.
 
-Forced tool call, per input item, producing: `note_type`
-(`Spanish Verb` | `Spanish General Word`, via the "has a conjugation table →
-Verb, else → General Word" rule), `deck` (one of the 11 real subdecks —
-best-effort LLM classification, correctable in review), every field for both
-note types (populate what's relevant, empty string otherwise — same
-convention `WORKBOOK_GENERATION_TOOL` already uses, since tool schemas don't
-reliably enforce conditional shapes), `tags` (against the controlled
-vocabulary in `docs/ANKI_SCHEMA.md` §4), and `out_of_scope` +
-`out_of_scope_reason` for terms that are actually grammar patterns, not
-vocabulary (§5 — flashcards are vocabulary only; a flagged term produces no
-card at all, not a bad one). Does not apply `known_structures` (§12) — still
-unimplemented anywhere in this codebase (unchanged from the original
-Phase 5 finding).
-
-### 14.4 Dedup — `known_cards`
-
-Dedup happens **before** generation, not after. `known_cards` is a
-standalone ledger seeded from a real Anki export (same parser as §14.2's
-weak-item ingest, unfiltered), not from the app's own generation history and
-not from the Google Doc master word list (which has lagged behind the real
-deck before — `docs/ANKI_SCHEMA.md` §7). A selected term whose normalized
-form (`normalizeForMatch`, `src/shared/workbook/matching.ts`) matches
-`known_cards` is flagged in the generate response and never sent to the
-model. `known_cards` grows as confirmed cards are added (§14.5) — it's the
-always-current dedup source going forward, separate from whatever review
-state a `flashcards` row is in.
-
-### 14.5 Generation → review → export (staged, not generate → done)
-
-Generation produces `status='draft'` rows, not immediately export-eligible
-ones (`docs/ANKI_SCHEMA.md` §8 — the learner has caught misclassified verbs
-and wrong pronoun distinctions in past ad hoc generation, so review is load-
-bearing, not optional polish):
-
-1. Draft cards are editable (`note_type`, `deck`, `tags` — the fields most
-   likely to be wrong) with generated field content shown read-only plus a
-   per-card regenerate action, rather than raw multi-field editing.
-2. **Confirm**: adds the card to `known_cards` (ledger insert happens
-   *before* the status flip, so a partial failure never leaves something
-   marked confirmed without being deduped against — same ordering
-   discipline as `persistGradedEntry`'s compensating delete, §8.2) and makes
-   it export-eligible.
-3. **Reject**: discards the card. Not added to `known_cards`.
-
-### 14.6 Export
-
-TSV only — no `.apkg` binary (hand-rolling Anki's SQLite collection format,
-or a new dependency, is out of scope for "lean and adaptable," §2). One file
-per `(deck, note_type)` group (a deck could in principle hold either note
-type, so grouping is by the pair, not deck alone), with the 5-line header
-`docs/ANKI_SCHEMA.md` §3 specifies exactly (`#separator:tab`, `#html:true`,
-`#notetype:`, `#deck:Spanish Frequency::NN Name`, `#tags column:13|4`) —
-**field order is load-bearing**, TSV import maps by column position, not
-header name. One export button per group in the browse view (no zip, no
-all-at-once download — matches "lean," and importing into Anki happens a
-deck at a time anyway). Export marks that group's cards' `exported_at`.
-
-### 14.7 Explicit non-goals
-
-- **No in-app flashcard *study*/spaced-repetition UI.** Anki is the review
-  surface; Aula's review step is curatorial only (§14.5).
-- **Flashcard review never writes to `error_observations`.** That table is
-  for genuine graded production attempts (§10.4); confirming/rejecting a
-  draft card isn't a graded obligatory-context attempt, and mixing it in
-  would pollute the avoidance-proofing trend math the same way an unguarded
-  duplicate Writing entry would (§13).
-- **Entry regrade (§13) stays deferred** — orthogonal scope, needs its own
-  per-entry History browse view first.
-- **No real `.apkg` write-back.** `api/anki-ingest.py` stays read-only; TSV
-  export is a separate, one-way, manually-imported artifact.
-- **The `OtrasFormas` tense-expansion field gap** (`docs/ANKI_SCHEMA.md` §6
-  — the `Spanish Verb` note type has no copretérito/pretérito perfecto/
-  subjunctive field) is a known, documented gap, not built unless the
-  learner explicitly asks for it.
-
-### 14.8 Schema
+### 10.6 Schema
 
 ```sql
-flashcards (
-  id, status text default 'draft',  -- 'draft' | 'confirmed' | 'rejected'
-  note_type text,     -- 'Spanish Verb' | 'Spanish General Word'; null if out_of_scope
-  deck text,           -- one of the 11 real subdecks; null if out_of_scope
-  term text,           -- denormalized from fields->>'Word'
-  fields jsonb,         -- named object keyed by field name, matches note_type's layout; null if out_of_scope
-  tags text[] default '{}',
-  out_of_scope boolean default false,
-  out_of_scope_reason text,
-  dialect, dele_level_at_creation,
-  source text,          -- 'word_bank' | 'anki_weak_item'
-  source_word_bank_id uuid references word_bank(id) nullable,
-  source_note text,
-  created_at, confirmed_at nullable, exported_at nullable
-)
+CREATE TABLE input_texts (
+  id uuid PRIMARY KEY,
+  title text,
+  source text,                    -- free text: 'BBC Mundo', 'Flavia', etc.
+  body text NOT NULL,
+  word_count int,
+  unknown_token_count int,
+  created_at timestamptz DEFAULT now()
+);
 
-known_cards (
-  id, term text, deck text, note_type text,
-  source text,          -- 'seed_import' | 'generated'
-  flashcard_id uuid references flashcards(id) nullable,  -- set only when source='generated'
-  created_at
-)
+CREATE TABLE input_lexis (
+  id uuid PRIMARY KEY,
+  input_text_id uuid NOT NULL REFERENCES input_texts(id) ON DELETE CASCADE,
+  surface text NOT NULL,
+  lemma text,
+  frequency_rank int,
+  context_sentence text,
+  gloss text,
+  false_friend_flag boolean DEFAULT false,
+  known_at_encounter boolean,
+  captured_to_word_bank boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX ON input_lexis (lemma);
 ```
 
-### 14.9 Definition of done for Phase 5 (rebuilt)
+`known_at_encounter` is worth storing rather than recomputing: it captures
+what was known *at the time of reading*, which is what makes a retrospective
+"vocabulary growth over time" view possible later.
 
-- Cards generate from both Word Bank entries and Anki weak items, targeting
-  the correct note type and one of the 11 real subdecks, via a forced-tool
-  Sonnet call using `docs/ANKI_SCHEMA.md` as embedded context.
-- A term matching `known_cards` is flagged in the generate response and
-  never sent to the model — not generated and discarded after the fact.
-- A term that's a grammar pattern, not vocabulary, comes back
-  `out_of_scope` with a reason, not a bad card.
-- Generated cards land as `status='draft'`; confirming one inserts it into
-  `known_cards` before flipping its status (ordering matters — see §14.5);
-  rejecting one does not touch `known_cards`.
-- TSV export groups confirmed cards by `(deck, note_type)`, one file per
-  group, 5-line header matching `docs/ANKI_SCHEMA.md` §3 exactly, correct
-  field count per row (13 for `Spanish Verb`, 4 for `Spanish General Word`,
-  Tags always last).
-- Flashcards tab follows the Mobile UI conventions (CLAUDE.md) from the
-  start — no retrofit.
-- Migration (`flashcards` redesign + new `known_cards` table) follows §8.5;
-  all prior data intact.
+### 10.7 Input enhancement detail
+
+For each category currently carrying an escalation flag, find instances in
+the text where that structure appears **correctly**. Highlight them subtly
+(an underline, not a block color — this must not wreck readability), and on
+tap show a single line: what structure this is and why it takes that form
+here.
+
+This is a positive-evidence mechanism, and it's the opposite of what the rest
+of the app does. Everywhere else the learner sees their own errors. Here they
+see the target form used correctly, in context, by a native writer, on
+exactly the structure they're getting wrong. Both are needed.
+
+Off by default. Reading with every subjunctive underlined is not reading.
+
+### 10.8 Definition of done for Phase 10
+
+- A pasted 600-word article renders with unknown items glossed and known
+  items untouched, verified against real `known_cards` state — including at
+  least one inflected form whose lemma is in the deck.
+- At least one false friend in a test article is flagged as such in its gloss.
+- Comprehension questions generate in Spanish at the stored DELE level.
+- The enhancement toggle highlights a currently-flagged category and turns
+  off cleanly.
+- One-tap capture writes to `word_bank` with the correct context sentence and
+  the real capture date.
+- `error_observations` row count is **unchanged** by any Lectura activity.
+- Total model cost for one article is visible in `usage_log`, and is under
+  one cent for a typical news article.
+- No new serverless functions were added.
+
+---
+
+## 11. Deferred phases (specced separately, not cancelled)
+
+**Phase 7 — Targeted prompt elicitation** and **Phase 9 — Focused feedback
+budget** are fully described in `docs/ROADMAP.md` at summary level. They will
+be promoted into this PRD with full detailed specs (matching §9/§10's depth)
+when they become the current target. Building Phase 8 and Phase 10 first does
+not block or complicate either — Phase 7 seeds the prompt generator from the
+same error-log queries §8.3 already computes, and Phase 9 only changes the
+grading system prompt's explanation budget, not the contract in §4.
+
+See `docs/ROADMAP.md` for the full backlog (spaced/interleaved Workbook
+scheduling, lexical profiling, DELE task-format mode, speaking ingest,
+`known_structures` wiring) and for weekly sequencing guidance.
