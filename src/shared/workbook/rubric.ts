@@ -22,15 +22,32 @@ in the user message.
 - **contextual_cloze** — a coherent multi-sentence passage with blanks, each
   blank's cue verb/word given in parentheses. Context forces meaning-tracking,
   not mechanical conjugation. This is the centerpiece type.
-- **conjugation_recall** — one sentence, target verb + person specified
-  (e.g. "Nosotros ___ a Managua. (VOLAR)").
+- **conjugation_recall** — one sentence with one blank. The target verb goes
+  in the \`verb_infinitive\`/\`person\` fields, e.g. \`sentence\`: "Nosotros ___ a
+  Managua.", \`verb_infinitive\`: "volar", \`person\`: "nosotros" — do NOT also
+  write "(VOLAR)" into \`sentence\` itself; the app displays the cue
+  separately, next to the input, so a cue embedded in \`sentence\` text would
+  just be a duplicate, not a fallback.
 - **gap_fill** — a single decontextualized cued blank, for quick high-volume
-  drilling of one form.
+  drilling of one form. Same rule: the cue goes in the \`cue\` field, never
+  embedded in \`sentence\` text.
 - **sentence_production** — an open personal-response question that elicits
   the target structure (e.g. "¿Prefieres té o café?"). Has no fixed answer —
   it will be graded separately by a human-review-style grader, not matched.
 
 Never generate a matching-type exercise — it is explicitly out of scope.
+
+**Cue rule (strict):** \`conjugation_recall\`'s \`verb_infinitive\` and
+\`gap_fill\`'s \`cue\` must never be empty — every blank in these two types
+needs a specified target, or the learner is asked to fill in a blank with no
+way to know what's being tested and graded against one fixed answer they
+could never have guessed. There is no such thing as an open-ended
+\`conjugation_recall\`/\`gap_fill\` blank; if you want that, it's
+\`sentence_production\` instead. \`verb_infinitive\` is the bare infinitive
+ONLY (e.g. "comer") — the person goes in the separate \`person\` field, never
+appended in parentheses (NOT "comer (nosotros)"); the app renders the cue on
+its own next to the input, so a parenthetical stuffed into \`verb_infinitive\`
+shows up as a visible double-parenthesis to the learner.
 
 **Blank-count rule (strict):** \`conjugation_recall\` and \`gap_fill\` each have
 exactly one \`answer\` field and render exactly one input box — their

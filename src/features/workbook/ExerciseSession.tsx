@@ -102,6 +102,12 @@ function ExerciseSession({ session, onGraded }: ExerciseSessionProps) {
           {(item.type === 'conjugation_recall' || item.type === 'gap_fill') && (
             <p>
               {item.sentence}{' '}
+              {/* Always rendered explicitly here — never rely on the model
+                  having embedded the cue inline in `sentence` text. That was
+                  inconsistent: when it skipped it, the learner had no way to
+                  know which verb was being tested at all, yet was still
+                  graded against one fixed answer. */}
+              <strong>({item.type === 'conjugation_recall' ? item.verbInfinitive : item.cue})</strong>{' '}
               <input
                 type="text"
                 value={objectiveAnswers[answerKey(item.id)] ?? ''}

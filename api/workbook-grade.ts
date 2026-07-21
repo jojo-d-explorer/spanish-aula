@@ -185,7 +185,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           excerpt: obs.excerpt,
           correction: obs.correction,
           note: obs.note,
-          portugueseInterference: obs.portuguese_interference,
+          // Same reliability gap as entries.ts (Writing) — the model doesn't
+          // always populate this despite the schema requiring it. A dropped
+          // boolean here fails the whole batch insert (persistWorkbookObservations
+          // is one insert for every observation from every item), silently
+          // losing every other observation in the session too. `false` is
+          // the safe default absent evidence otherwise.
+          portugueseInterference: obs.portuguese_interference ?? false,
         })),
       ),
     ];

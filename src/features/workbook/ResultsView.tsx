@@ -17,9 +17,15 @@ function itemContext(item: ExerciseItem | undefined): string | null {
   return null;
 }
 
+// Always pulled from the structured field, never from `sentence`/`passage`
+// text — the model doesn't reliably embed the cue inline (ExerciseSession.tsx
+// has the same fix), so this is the one place the cue is read from.
 function blankCue(item: ExerciseItem | undefined, blankId: string | undefined): string | null {
-  if (!item || item.type !== 'contextual_cloze' || !blankId) return null;
-  return item.blanks.find((b) => b.id === blankId)?.cue ?? null;
+  if (!item) return null;
+  if (item.type === 'contextual_cloze') return blankId ? (item.blanks.find((b) => b.id === blankId)?.cue ?? null) : null;
+  if (item.type === 'conjugation_recall') return item.verbInfinitive;
+  if (item.type === 'gap_fill') return item.cue;
+  return null;
 }
 
 interface ObjectiveGroup {

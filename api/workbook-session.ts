@@ -52,6 +52,16 @@ interface RawGeneratedItem {
   question: string;
 }
 
+// rubric.ts's "Cue rule" tells the model verb_infinitive/cue is the bare
+// target only, person goes in its own field — confirmed live that Haiku
+// doesn't reliably follow this and sometimes appends "(nosotros)" etc.
+// straight onto verb_infinitive, which the UI renders as a double
+// parenthesis next to the input. Same reliability gap as the blank-count
+// and empty-cue rules above; strip rather than trust the prompt alone.
+function stripTrailingParenthetical(value: string): string {
+  return value.replace(/\s*\([^()]*\)\s*$/, '').trim();
+}
+
 function toExerciseItem(raw: RawGeneratedItem, fallbackCategory: ErrorCategory): ExerciseItem {
   const category = isErrorCategory(raw.category) ? raw.category : fallbackCategory;
   const base = { id: randomUUID(), category, prompt: raw.prompt, rationale: raw.rationale };
@@ -69,7 +79,7 @@ function toExerciseItem(raw: RawGeneratedItem, fallbackCategory: ErrorCategory):
         ...base,
         type: 'conjugation_recall',
         sentence: raw.sentence,
-        verbInfinitive: raw.verb_infinitive,
+        verbInfinitive: stripTrailingParenthetical(raw.verb_infinitive),
         person: raw.person,
         answer: raw.answer,
       };
@@ -78,7 +88,7 @@ function toExerciseItem(raw: RawGeneratedItem, fallbackCategory: ErrorCategory):
         ...base,
         type: 'gap_fill',
         sentence: raw.sentence,
-        cue: raw.cue,
+        cue: stripTrailingParenthetical(raw.cue),
         answer: raw.answer,
       };
     case 'sentence_production':
@@ -218,6 +228,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const blankCount = (item.sentence.match(/_{2,}/g) ?? []).length;
         if (blankCount > 1) {
           console.warn(`Dropping malformed ${item.type} item — ${blankCount} blanks but one answer field:`, item.sentence);
+          return false;
+        }
+        // Same reliability gap as the blank-count rule (rubric.ts "Cue
+        // rule") — the model sometimes leaves the target verb unspecified,
+        // which used to be invisible: the UI only ever rendered `sentence`,
+        // so a missing cue meant the learner had no way to know which verb
+        // was being tested, yet was still graded against one fixed answer.
+        // ExerciseSession.tsx/ResultsView.tsx now always render the
+        // structured cue field explicitly, but that only helps if it's
+        // actually populated — drop the item if it isn't.
+        const cue = item.type === 'conjugation_recall' ? item.verbInfinitive : item.cue;
+        if (!cue.trim()) {
+          console.warn(`Dropping malformed ${item.type} item — no verb cue specified:`, item.sentence);
           return false;
         }
         return true;
