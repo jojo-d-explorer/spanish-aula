@@ -1,0 +1,86 @@
+.revision-editor {
+  --surface-1: #fcfcfb;
+  --surface-2: #f1f0ec;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --accent: #2a78d6;
+  --border: rgba(11, 11, 11, 0.1);
+  text-align: left;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+@media (prefers-color-scheme: dark) {
+  .revision-editor {
+    --surface-1: #1a1a19;
+    --surface-2: #232320;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --accent: #3987e5;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.revision-editor__hint {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+
+.revision-original {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.revision-original__text {
+  margin: 0;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.revision-marker {
+  background: none;
+  color: inherit;
+  padding: 0;
+  display: inline;
+}
+
+.revision-marker__text {
+  border-bottom: 2px solid var(--accent);
+}
+
+.revision-marker__category {
+  font-size: 11px;
+  color: var(--accent);
+  vertical-align: super;
+  margin-left: 2px;
+}
+
+.revision-marker__reveal {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 2px 0 6px;
+}
+
+.revision-original__unlocated {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px dashed var(--border);
+  font-size: 13px;
+}
+
+.revision-reveal-toggle {
+  margin-bottom: 12px;
+}
+
+.revision-editor__actions {
+  margin-top: 10px;
+}

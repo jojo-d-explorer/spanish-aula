@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { generateWritingPrompt, type WritingPrompt, type DeleLevel, DELE_LEVEL_OPTIONS } from '../../shared/prompts/writingPrompt';
-import type { GradingContract, ErrorCategory, AccuracyObservation, CategorySummaryEntry } from '../../shared/grading/types';
+import type { ErrorCategory, ChainEntry } from '../../shared/grading/types';
 import type { SettingsResponse } from '../../shared/settings/types';
 import { autoGrowTextarea } from '../../shared/ui/autoGrow';
-import { formatCategoryLabel, formatSubscoreLabel } from '../../shared/grading/categoryLabels';
+import GradedEntryView from './GradedEntryView';
+import RevisionEditor from '../revision/RevisionEditor';
 import HistoryView from './history/HistoryView';
 import './Writing.css';
 
@@ -11,37 +12,12 @@ interface WritingTabProps {
   onPracticeCategory: (category: ErrorCategory) => void;
 }
 
-interface CategoryDiagnosis {
-  category: ErrorCategory;
-  summary: CategorySummaryEntry;
-  mistakes: AccuracyObservation[];
+function hasFlaggedErrors(entry: ChainEntry): boolean {
+  return entry.accuracy.observations.some((o) => o.obligatory_context && !o.correct);
 }
 
-// category_summary is already curated to "only categories with an
-// obligatory context in this entry" (rubric.ts) — group the individual
-// observations under those same keys rather than re-deriving anything.
-function buildDiagnosis(feedback: GradingContract): { withMistakes: CategoryDiagnosis[]; allCorrect: CategoryDiagnosis[] } {
-  const observationsByCategory = new Map<string, AccuracyObservation[]>();
-  for (const obs of feedback.accuracy.observations) {
-    const list = observationsByCategory.get(obs.category) ?? [];
-    list.push(obs);
-    observationsByCategory.set(obs.category, list);
-  }
-
-  const diagnoses: CategoryDiagnosis[] = Object.entries(feedback.accuracy.category_summary).map(
-    ([category, summary]) => ({
-      category: category as ErrorCategory,
-      summary: summary!,
-      // Only the mistakes are individually interesting here — the ratio in
-      // the header already accounts for what the learner got right.
-      mistakes: (observationsByCategory.get(category) ?? []).filter((obs) => !obs.correct),
-    }),
-  );
-
-  return {
-    withMistakes: diagnoses.filter((d) => d.mistakes.length > 0),
-    allCorrect: diagnoses.filter((d) => d.mistakes.length === 0),
-  };
+function chainHeading(index: number): string {
+  return index === 0 ? 'Original' : `Revision ${index}`;
 }
 
 function WritingTab({ onPracticeCategory }: WritingTabProps) {
@@ -52,7 +28,11 @@ function WritingTab({ onPracticeCategory }: WritingTabProps) {
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const [prompt, setPrompt] = useState<WritingPrompt | null>(null);
   const [entryText, setEntryText] = useState('');
-  const [feedback, setFeedback] = useState<GradingContract | null>(null);
+  // index 0 = the original graded entry, index n = revision n — this single
+  // chain is what makes "revision of a revision" and "both versions viewable
+  // side by side" (PRD §9.2/§9.9) work without a fetch-by-id endpoint.
+  const [chain, setChain] = useState<ChainEntry[]>([]);
+  const [revising, setRevising] = useState(false);
   const [status, setStatus] = useState<'idle' | 'grading' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [saveWarning, setSaveWarning] = useState('');
@@ -98,22 +78,25 @@ function WritingTab({ onPracticeCategory }: WritingTabProps) {
     if (!settings) return;
     setPrompt(generateWritingPrompt(settings.dialect, settings.deleLevel));
     setEntryText('');
-    setFeedback(null);
+    setChain([]);
+    setRevising(false);
     setStatus('idle');
   }
 
   async function handleSubmit() {
     if (!settings) return;
+    const textAtSubmit = entryText.trim();
     setStatus('grading');
     setErrorMessage('');
     setSaveWarning('');
-    setFeedback(null);
+    setChain([]);
+    setRevising(false);
     try {
       const res = await fetch('/api/grade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entryText,
+          entryText: textAtSubmit,
           promptText: prompt?.text ?? '',
           dialect: settings.dialect,
           deleLevel: settings.deleLevel,
@@ -121,7 +104,7 @@ function WritingTab({ onPracticeCategory }: WritingTabProps) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Grading failed');
-      setFeedback(data as GradingContract);
+      setChain([{ ...data, text: textAtSubmit } as ChainEntry]);
       if (data.persistError) setSaveWarning(data.persistError);
       setStatus('idle');
       // A fresh entry may have just crossed the nudge threshold.
@@ -132,6 +115,9 @@ function WritingTab({ onPracticeCategory }: WritingTabProps) {
       setStatus('error');
     }
   }
+
+  const latest = chain.length > 0 ? chain[chain.length - 1] : null;
+  const canRevise = !!latest && latest.entryId != null && hasFlaggedErrors(latest);
 
   return (
     <section>
@@ -205,75 +191,30 @@ function WritingTab({ onPracticeCategory }: WritingTabProps) {
 
           {status === 'error' && <p role="alert">{errorMessage}</p>}
 
-          {feedback && (
-            <div className="writing-feedback">
-              <div className="writing-feedback__prose">
-                <h3>Feedback (Dra. Restrepo)</h3>
-                <p>{feedback.feedback_prose}</p>
-              </div>
+          {chain.map((entry, i) => (
+            <GradedEntryView key={i} entry={entry} heading={chainHeading(i)} onPracticeCategory={onPracticeCategory} />
+          ))}
 
-              <div className="writing-feedback__corrected">
-                <h4>Corrected text</h4>
-                <p>{feedback.corrected_text}</p>
-              </div>
+          {saveWarning && <p role="alert">{saveWarning}</p>}
 
-              <div className="writing-diagnosis">
-                <h4 className="writing-diagnosis__heading">Diagnosis by category</h4>
-                {(() => {
-                  const { withMistakes, allCorrect } = buildDiagnosis(feedback);
-                  return (
-                    <>
-                      {withMistakes.map((d) => (
-                        <div key={d.category} className="writing-category-card">
-                          <div className="writing-category-card__header">
-                            <span className="writing-category-card__label">{formatCategoryLabel(d.category)}</span>
-                            <span className="writing-category-card__ratio">
-                              {d.summary.correct}/{d.summary.obligatory_contexts}
-                            </span>
-                          </div>
-                          <ul className="writing-category-card__mistakes">
-                            {d.mistakes.map((m, i) => (
-                              <li key={i} className="writing-mistake">
-                                <span className="writing-mistake__excerpt">{m.excerpt}</span>
-                                <span className="writing-mistake__arrow"> → </span>
-                                <span className="writing-mistake__correction">{m.correction}</span>
-                                {m.note && <p className="writing-mistake__note">{m.note}</p>}
-                              </li>
-                            ))}
-                          </ul>
-                          <button onClick={() => onPracticeCategory(d.category)}>Practice in Workbook →</button>
-                        </div>
-                      ))}
-                      {allCorrect.length > 0 && (
-                        <p className="writing-feedback__all-correct">
-                          ✓ Also solid: {allCorrect.map((d) => formatCategoryLabel(d.category)).join(', ')}
-                        </p>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
+          {latest && !revising && (
+            <>
+              {canRevise && <button onClick={() => setRevising(true)}>Revisar →</button>}
+              {latest.entryId == null && <p role="alert">This entry wasn't saved, so it can't be revised.</p>}
+            </>
+          )}
 
-              <div className="writing-feedback__stats">
-                <div className="writing-stat">
-                  <div className="writing-stat__label">Sophistication</div>
-                  <div className="writing-stat__value">{feedback.sophistication.overall}/10</div>
-                  <ul className="writing-stat__subscores">
-                    {Object.entries(feedback.sophistication.subscores).map(([key, value]) => (
-                      <li key={key}>
-                        {formatSubscoreLabel(key as keyof typeof feedback.sophistication.subscores)}: {value}/10
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="writing-stat">
-                  <div className="writing-stat__label">Estimated DELE level</div>
-                  <div className="writing-stat__value">{feedback.dele_level_estimate}</div>
-                </div>
-              </div>
-
-              {saveWarning && <p role="alert">{saveWarning}</p>}
-            </div>
+          {revising && latest && settings && (
+            <RevisionEditor
+              parent={latest}
+              dialect={settings.dialect}
+              deleLevel={settings.deleLevel}
+              onSaved={(revised) => {
+                setChain((c) => [...c, revised]);
+                setRevising(false);
+              }}
+              onCancel={() => setRevising(false)}
+            />
           )}
         </>
       )}

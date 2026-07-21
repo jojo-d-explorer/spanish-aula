@@ -98,3 +98,71 @@ export function isCompleteGradingContract(value: unknown): value is GradingContr
     !!v.sophistication.subscores
   );
 }
+
+// Phase 8 (PRD §9.6) — additive top-level key on a revision grading call
+// only. The base contract above never changes shape.
+export const UPTAKE_OUTCOMES = ['fixed', 'still_wrong', 'avoided'] as const;
+export type UptakeOutcome = (typeof UPTAKE_OUTCOMES)[number];
+
+export interface UptakeResolution {
+  observation_id: string;
+  category: ErrorCategory;
+  outcome: UptakeOutcome;
+  note: string;
+}
+
+export interface UptakeSummary {
+  flagged: number;
+  fixed: number;
+  still_wrong: number;
+  avoided: number;
+  new_errors_introduced: number;
+}
+
+export interface UptakeBlock {
+  resolutions: UptakeResolution[];
+  summary: UptakeSummary;
+}
+
+export interface RevisionGradingContract extends GradingContract {
+  uptake: UptakeBlock;
+}
+
+// Client-side only — the wire contract itself never carries `entryId`/
+// `text`/`persistError` (see isCompleteGradingContract above), but every UI
+// consumer needs them threaded alongside the grading result. `uptake` is
+// present only for a revision entry.
+export interface ChainEntry extends GradingContract {
+  entryId: string | null;
+  text: string;
+  persistError?: string;
+  uptake?: UptakeBlock;
+}
+
+// PRD §9.6 — `uptake` generates last in the response and is the most
+// truncation-prone part. `expectedResolutionCount` is the count of parent
+// observations with obligatory_context=true && correct=false, computed
+// server-side before the call — resolutions must match it exactly (§9.6:
+// "not more, not fewer").
+export function isCompleteUptakeBlock(value: unknown, expectedResolutionCount: number): value is UptakeBlock {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Partial<UptakeBlock>;
+  return (
+    Array.isArray(v.resolutions) &&
+    v.resolutions.length === expectedResolutionCount &&
+    v.resolutions.every(
+      (r) =>
+        r &&
+        typeof r.observation_id === 'string' &&
+        typeof r.category === 'string' &&
+        (UPTAKE_OUTCOMES as readonly string[]).includes(r.outcome) &&
+        typeof r.note === 'string',
+    ) &&
+    !!v.summary &&
+    typeof v.summary.flagged === 'number' &&
+    typeof v.summary.fixed === 'number' &&
+    typeof v.summary.still_wrong === 'number' &&
+    typeof v.summary.avoided === 'number' &&
+    typeof v.summary.new_errors_introduced === 'number'
+  );
+}

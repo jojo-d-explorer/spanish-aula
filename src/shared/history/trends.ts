@@ -12,12 +12,14 @@ export interface ObservationRecord {
   category: ErrorCategory;
   obligatoryContext: boolean;
   correct: boolean;
+  isRevision: boolean;
 }
 
 export interface EntrySophisticationRecord {
   createdAt: string;
   overall: number;
   subscores: SophisticationSubscores;
+  isRevision: boolean;
 }
 
 export interface WeeklyPoint {
@@ -91,7 +93,11 @@ export function computeTrends(
   sophisticationRecords: EntrySophisticationRecord[],
   now: Date = new Date(),
 ): HistoryTrends {
-  const obligatory = observations.filter((o) => o.obligatoryContext);
+  // PRD §9.7 — revision observations never leak into accuracy/exposure or
+  // sophistication trends. Filtered here, not just at the DB query layer,
+  // so this holds even if a caller forgets the query-side filter.
+  const obligatory = observations.filter((o) => o.obligatoryContext && !o.isRevision);
+  sophisticationRecords = sophisticationRecords.filter((r) => !r.isRevision);
 
   const windowMs = WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const currentStart = new Date(now.getTime() - windowMs);

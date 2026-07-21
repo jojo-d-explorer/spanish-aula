@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import Sparkline from './Sparkline';
 import type { HistoryTrends, CategoryTrend, SophisticationWeeklyPoint } from '../../../shared/history/trends';
+import type { UptakeCategoryTrend } from '../../../shared/history/uptakeTrends';
 import { SUBSCORE_KEYS } from '../../../shared/grading/types';
-import { SUBSCORE_LABELS } from '../../../shared/grading/categoryLabels';
+import { SUBSCORE_LABELS, formatCategoryLabel } from '../../../shared/grading/categoryLabels';
 import './HistoryView.css';
+
+interface HistoryResponse extends HistoryTrends {
+  uptake: UptakeCategoryTrend[];
+}
 
 function CategoryCard({ trend }: { trend: CategoryTrend }) {
   if (trend.weeks.length === 0) return null;
@@ -71,8 +76,40 @@ function SophisticationSection({ data }: { data: SophisticationWeeklyPoint[] }) 
   );
 }
 
+// PRD §9.8 — its own family of series, kept visually separate from
+// accuracy/exposure above (never blended into those cards or their flags).
+function UptakeSection({ data }: { data: UptakeCategoryTrend[] }) {
+  if (data.length === 0) return null;
+
+  return (
+    <div>
+      <h3 className="history-section-title">Uptake on revisions</h3>
+      {data.map((trend) => (
+        <div className="history-card" key={trend.category}>
+          <div className="history-card__header">
+            <h4>{formatCategoryLabel(trend.category)}</h4>
+            {trend.avoidanceRate >= 0.34 && (
+              <span className="history-badge history-badge--warning">⚠ high avoidance</span>
+            )}
+          </div>
+          <div className="history-card__stats">
+            <div className="history-stat">
+              <div className="history-stat__value">{Math.round(trend.uptakeRate * 100)}%</div>
+              <div className="history-stat__label">Uptake rate ({trend.fixed}/{trend.denominator} fixed)</div>
+            </div>
+            <div className="history-stat">
+              <div className="history-stat__value">{Math.round(trend.avoidanceRate * 100)}%</div>
+              <div className="history-stat__label">Avoidance-on-revision ({trend.avoided}/{trend.denominator})</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function HistoryView() {
-  const [trends, setTrends] = useState<HistoryTrends | null>(null);
+  const [trends, setTrends] = useState<HistoryResponse | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   useEffect(() => {
@@ -80,7 +117,7 @@ function HistoryView() {
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Failed to load history');
-        setTrends(data as HistoryTrends);
+        setTrends(data as HistoryResponse);
         setStatus('ready');
       })
       .catch((err) => {
@@ -101,6 +138,7 @@ function HistoryView() {
         <CategoryCard key={trend.category} trend={trend} />
       ))}
       <SophisticationSection data={trends.sophistication} />
+      <UptakeSection data={trends.uptake} />
     </div>
   );
 }

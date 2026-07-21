@@ -27,9 +27,12 @@ export async function updateDeleLevel(deleLevel: DeleLevel): Promise<void> {
 
 export async function getRecentDeleLevelEstimates(limit: number): Promise<string[]> {
   const supabase = getSupabaseClient();
+  // PRD §9.7 — the DELE-level nudge counts original entries only; a
+  // revision is not an entry for nudge purposes.
   const { data, error } = await supabase
     .from('entries')
     .select('dele_level_estimate')
+    .is('parent_entry_id', null)
     .order('created_at', { ascending: false })
     .limit(limit);
 
